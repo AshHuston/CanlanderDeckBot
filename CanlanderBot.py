@@ -22,12 +22,13 @@ async def deckColors(ctx, url):
     deckInfo = moxfieldDecklist.getDeckInfo(url)
     await ctx.send(deckInfo["colors"])
 
+'''
 @bot.command()
 async def saveDeck(ctx, url):
     await ctx.send("Uploading to database...")
     user = 
     pass
-
+'''
 # properties of a deck
     # Name
     # Colors (derivable)
