@@ -3,44 +3,80 @@ import os
 import discord
 from discord.ext import commands
 import moxfieldDecklist
+import canlanderPoints
+
+decklistDatabase = database.database('canlanderDecksDB', ['deckName', 'colors', 'tags', 'user', 'points', 'link', 'decklist', 'submission date', 'regions', 'price'])
 
 botAuthToken = 'MTI1ODUwMjkzNTc4NTI0MjY2NQ.G5Sxwg.eFvhLii4x1nz8FOO5uUto4dUZOi8mSKR8k_95A'
 
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix='$', intents=intents)    
+bot = commands.Bot(command_prefix='/', intents=intents)    
 
 @bot.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(bot))
 
-#----------------------------------COMMANDS-----------------------------------------#
-@bot.command()
-async def deckColors(ctx, url):
-    print("test")
-    await ctx.send("Checking...")
-    deckInfo = moxfieldDecklist.getDeckInfo(url)
-    await ctx.send(deckInfo["colors"])
+# ----------------------------------FUNCTIONS---------------------------------------- #
+def createDatabaseEntry(dataStruct):
+    try:
+        decklistDatabase.addRow(dataStruct)
+        return True
+    except:
+        return False
+    
+def getPoints(decklist):
+    decklist = decklist.split("\n")
+    i = 0
+    while i < len(decklist):
+        text = decklist[i]
+        if text == "" or text == 'SIDEBOARD:':
+            decklist.pop(i)
+            i -= 1
+        i += 1
 
-'''
-@bot.command()
-async def saveDeck(ctx, url):
-    await ctx.send("Uploading to database...")
-    user = 
+    for i in range(len(decklist)):
+        originalString = decklist[i]
+        noQuantity = originalString.split(" ", 1)[1]
+        noSetID = noQuantity.split("(", 1)[0]
+        decklist[i] = noSetID
+
+    return canlanderPoints.listPointedCards(decklist)
+
+def getCurrentDate():
     pass
-'''
-# properties of a deck
-    # Name
-    # Colors (derivable)
-    # Tags
-    # User who submitted (derivable)
-    # Points (derivable)
-    # Link
-    # Decklist
-    # Database ID (derivable)
-    # Submission date  (derivable)
-    # Region
+# ----------------------------------MOD_COMMANDS------------------------------------- #
+@bot.command()
+async def modOnly(ctx):
+    pass
+    
+# ----------------------------------COMMANDS----------------------------------------- #
+@bot.command()
+async def pointsCheck(ctx, url):
+    loadingMessage = await ctx.send("Checking...")
+    deckInfo = moxfieldDecklist.getDeckInfo(url)
+    points = getPoints(deckInfo["decklist"])
+    await loadingMessage.delete()
+    await ctx.send(points)
+    
+@bot.command()
+async def saveDeck(ctx, moxfieldLink, region, *tags):
+    loadingMessage = await ctx.send("Uploading to database...")
+    moxfieldDeckInfo = moxfieldDecklist.getDeckInfo(moxfieldLink)
+    deckData = {
+        'deckName': moxfieldDeckInfo['deckName'], 
+        'colors': moxfieldDeckInfo['color'], 
+        'tags': tags, 
+        'user': ctx.author, 
+        'points': getPoints(moxfieldDeckInfo['decklist']), 
+        'link': moxfieldLink, 
+        'decklist': moxfieldDeckInfo['decklist'], 
+        'submission date': getCurrentDate(), 
+        'region': region,
+        'price': moxfieldDeckInfo['price']
+        }
 
+   
 
 
 """
@@ -63,7 +99,7 @@ print(mydb.getValuesFromRows('name', 'color', 'red'))
 print(mydb.getRowNumbers('color', 'red'))
 """
 
-# ---------- Discord bs. Don't touch it. ----------
+# ---------- Discord stuff. Don't touch it. ----------
 try:
     token = botAuthToken or ""
     if token == "":

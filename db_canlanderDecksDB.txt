@@ -1,0 +1,1 @@
+| deckName | colors | tags | user | points | link | decklist | submission date | regions | 
