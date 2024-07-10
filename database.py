@@ -3,6 +3,7 @@ import os
 import secrets
 # import cryptography
 import random
+import ast
 
 encrytionCharacters = [' ', '"', '\'', ':', ';', '<', '>', '/', '-', '+', '=', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '?', '~', '`', '_', '[', ']', '|', '.', ',', '{', '}', 
                       'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 
@@ -116,7 +117,9 @@ class database:
         allRows = self.getLines()
         for i in range(len(allRows)):
             if i>0:
-                dbEntry = json.loads(allRows[i].replace("\'", "\""))
+                dict = ast.literal_eval(allRows[i])
+                jsonString = json.dumps(dict)
+                dbEntry = json.loads(jsonString)
                 dbEntry['row'] = i
                 allRows[i] = str(dbEntry)
         self.setLines(allRows)
@@ -172,7 +175,7 @@ class database:
         dbEntry = json.loads(lines[row].replace("\'", "\""))
         if key in self.columnNames:
             try:
-                dbEntry[key] = value
+                dbEntry[key] = {value}
                 lines[row] = str(dbEntry)
                 self.setLines(lines)
                 self.addRowNums()
@@ -197,7 +200,9 @@ class database:
         lines = self.getLines()
         if len(lines)<row:
             raise Exception("ERROR: '" + row + "' out of range for database '" + self.dbName + "'.")
-        jsonData = json.loads(data.replace("\'", "\""))
+        dict = ast.literal_eval(data)
+        jsonString = json.dumps(dict)
+        jsonData = json.loads(jsonString)
         varsAdded = []
         for each in jsonData:
             varsAdded.append(each)
@@ -222,7 +227,9 @@ class database:
             any: The value of the searched row/key.
         """
         lines = self.getLines()
-        dbEntry = json.loads(lines[row].replace("\'", "\""))
+        dict = ast.literal_eval(lines[row])
+        jsonString = json.dumps(dict)
+        dbEntry = json.loads(jsonString)
         value = dbEntry[key]
         return value
     
@@ -240,7 +247,9 @@ class database:
         lines = self.getLines()
         for rows in lines:
             try:
-                rowJson = json.loads(rows.replace("\'", "\""))
+                dict = ast.literal_eval(rows)
+                jsonString = json.dumps(dict)
+                rowJson = json.loads(jsonString)
             except:
                 if rows == lines[0]:
                     continue
@@ -294,7 +303,9 @@ class database:
         lines = self.getLines()
         for rows in lines:
             try:
-                rowJson = json.loads(rows.replace("\'", "\""))
+                dict = ast.literal_eval(rows)
+                jsonString = json.dumps(dict)
+                rowJson = json.loads(jsonString)
             except:
                 continue
             if rowJson[targetKey] == value:

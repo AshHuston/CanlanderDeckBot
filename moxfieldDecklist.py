@@ -18,6 +18,8 @@ def getDeckInfo(url):
     exportBtn.send_keys(Keys.RETURN)
     decklistTextBox = driver.find_element(By.NAME, "mtgo")
     decklist = decklistTextBox.get_attribute('value')
+    #.replace("'", "`")
+
 
     decklistTextBox.send_keys(Keys.ESCAPE)
 
@@ -28,11 +30,11 @@ def getDeckInfo(url):
     redPercent = driver.find_element(By.ID, "coloranalysis_pips_r").text.split("%")[0]
     greenPercent = driver.find_element(By.ID, "coloranalysis_pips_g").text.split("%")[0]
     colors = {
-        'white': (float(whitePercent)>0),
-        'blue': (float(bluePercent)>0),
-        'black': (float(blackPercent)>0),
-        'red': (float(redPercent)>0),
-        'green': (float(greenPercent)>0)
+        "white": f"{(float(whitePercent)>0)}",
+        "blue": f"{(float(bluePercent)>0)}",
+        "black": f"{(float(blackPercent)>0)}",
+        "red": f"{(float(redPercent)>0)}",
+        "green": f"{(float(greenPercent)>0)}"
     }
 
     buyBtn = driver.find_element(By.PARTIAL_LINK_TEXT, 'Buy')
@@ -44,10 +46,10 @@ def getDeckInfo(url):
     price = driver.find_element(By.ID, 'shoppingcart').text
 
     decklistInfo = {
-        'decklist': decklist,
-        'deckName': deckName,
-        'colors': colors,
-        'price': price
+        "decklist": decklist,
+        "deckName": deckName,
+        "colors": colors,
+        "price": price
     }
     
     driver.close()

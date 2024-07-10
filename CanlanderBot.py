@@ -4,8 +4,10 @@ import discord
 from discord.ext import commands
 import moxfieldDecklist
 import canlanderPoints
+from datetime import date
+import time
 
-decklistDatabase = database.database('canlanderDecksDB', ['deckName', 'colors', 'tags', 'user', 'points', 'link', 'decklist', 'submission date', 'regions', 'price'])
+decklistDatabase = database.database('canlanderDecksDB', ['deckName', 'colors', 'tags', 'user', 'points', 'url', 'decklist', 'submission date', 'region', 'price'])
 
 botAuthToken = 'MTI1ODUwMjkzNTc4NTI0MjY2NQ.G5Sxwg.eFvhLii4x1nz8FOO5uUto4dUZOi8mSKR8k_95A'
 
@@ -43,11 +45,45 @@ def getPoints(decklist):
 
     return canlanderPoints.listPointedCards(decklist)
 
+def findDeckByUrl(url):
+    foundDeck = decklistDatabase.getRowNumbers('url', url)
+    foundDeckRowID = -1
+    if foundDeck != []:
+        foundDeckRowID = foundDeck
+    return foundDeckRowID
+
+def findDecksBy(criterion, value):
+    foundDeckRowIDs = decklistDatabase.getRowNumbers(criterion, value)
+    return foundDeckRowIDs
+
+def updateDatabaseEntry(rowID, deckData):
+    try:
+        if len(deckData['tags'])<1:
+            tags = decklistDatabase.getValue(rowID, 'tags')
+            deckData['tags'] = tags
+        if deckData['region'] == "Online":
+            region = decklistDatabase.getValue(rowID, 'region')
+            deckData['region'] = region
+        decklistDatabase.updateRow(rowID, str(deckData))
+        return True
+    except:
+        return False
+
+def addNewDatabaseEntry(deckData):
+    try:
+        decklistDatabase.addRow(deckData)
+        return True
+    except:
+        return False
+
 def getCurrentDate():
-    pass
+    return str(date.today())
+
+
 # ----------------------------------MOD_COMMANDS------------------------------------- #
 @bot.command()
-async def modOnly(ctx):
+async def updateDecks(ctx):
+    # Goes though deck database. If any decks have changed on moxfield, update them.
     pass
     
 # ----------------------------------COMMANDS----------------------------------------- #
@@ -60,44 +96,71 @@ async def pointsCheck(ctx, url):
     await ctx.send(points)
     
 @bot.command()
-async def saveDeck(ctx, moxfieldLink, region, *tags):
+async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
     loadingMessage = await ctx.send("Uploading to database...")
     moxfieldDeckInfo = moxfieldDecklist.getDeckInfo(moxfieldLink)
     deckData = {
-        'deckName': moxfieldDeckInfo['deckName'], 
-        'colors': moxfieldDeckInfo['color'], 
-        'tags': tags, 
-        'user': ctx.author, 
-        'points': getPoints(moxfieldDeckInfo['decklist']), 
-        'link': moxfieldLink, 
-        'decklist': moxfieldDeckInfo['decklist'], 
-        'submission date': getCurrentDate(), 
-        'region': region,
-        'price': moxfieldDeckInfo['price']
+        "deckName": moxfieldDeckInfo['deckName'], 
+        "colors": moxfieldDeckInfo['colors'], 
+        "tags": f"{tags}", 
+        "user": f"{ctx.author}", 
+        "points": getPoints(moxfieldDeckInfo['decklist']), 
+        "url": moxfieldLink, 
+        "decklist": moxfieldDeckInfo['decklist'], 
+        "submission date": getCurrentDate(), 
+        "region": region,
+        "price": moxfieldDeckInfo['price']
         }
 
-   
+    deckID = findDeckByUrl(deckData['url'])
+    if deckID != -1:
+        if updateDatabaseEntry(deckID, deckData):
+            msg = 'Your entry has been updated!'
+        else:
+            msg = 'There was an issue with your update. Wait a moment and try again. If you still have issues please contact AshTheHorse.'
+        originalAuthor = decklistDatabase.getValue(deckID, 'user')
+        if originalAuthor != ctx.author.name:
+            msg = f'Sorry, this list has already been submitted by {originalAuthor} at storage ID {deckID}.'
 
+    else:
+        if addNewDatabaseEntry(deckData):
+            msg = 'Your entry has been added to the database!'
+        else:
+            msg = 'There was an issue with your entry. Wait a moment and try again. If you still have issues please contact AshTheHorse.'
+    await loadingMessage.delete()
+    response = await ctx.send(msg)
+    time.sleep(5)
+    await response.delete()
+    
+@bot.command()
+async def searchDecks(ctx, **criteria): ## --------------------------Look inot **kwargs more!
+    loadingMessage = await ctx.send("Searching database...")
+    allResultIDs = []
+    for criterion in criteria:
+        resultsForThis = findDecksBy(criterion, criteria[criterion])
+        allResultIDs.append(resultsForThis)
+    
+    fullMatches = set()
+    for each in allResultIDs:
+        if allResultIDs.count(each) == len(criteria):
+            fullMatches.add(each)
+    
+    outputLines = ""
+    for unique in fullMatches:
+        deckID = unique
+        deckName = decklistDatabase.getValue(unique, 'deckName')
+        url = decklistDatabase.getValue(unique, 'url')
+        outputLines.append(f'ID: {deckID} - [{deckName}] - {url}')
+    
+    await loadingMessage.delete()
+    if outputLines == "":
+        await ctx.send('Sorry, no decks found.')
+    else:
+        await ctx.send(outputLines)
+    #embed = discord.Embed()
+    #embed.description = outputLines
+    #await ctx.send(embed=embed)
 
-"""
-data = {"name": 'Ash Huston', 'color': 'blue', 'flavor': 'delicious'}
-mydb.addRow(data)
-data = {'name': 'Grace Huston', 'color': 'blue', 'flavor': 'delicious'}
-mydb.addRow(data)
-data = {'name': 'Sprinkle Huston', 'color': 'pink', 'flavor': 'strawberry'}
-mydb.addRow(data)
-data = {'name': 'Dexter Morgan', 'color': 'red', 'flavor': 'metallic'}
-mydb.addRow(data)
-
-
-print(mydb.encryptionKey)
-print(mydb.getValuesFromRows('name', 'color', 'red'))
-mydb.updateRow(1, "{'name': 'Ash Huston', 'color': 'red', 'flavor': 'manly'}")
-print(mydb.getValuesFromRows('name', 'color', 'red'))
-mydb.updateValue(1, 'color', 'blue')
-print(mydb.getValuesFromRows('name', 'color', 'red'))
-print(mydb.getRowNumbers('color', 'red'))
-"""
 
 # ---------- Discord stuff. Don't touch it. ----------
 try:
