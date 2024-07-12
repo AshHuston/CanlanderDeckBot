@@ -233,7 +233,7 @@ class database:
         value = dbEntry[key]
         return value
     
-    def getRows(self, key, value):
+    def getRows(self, key, value, caseSensitive=False):
         """Returns the row(s) that have a specific value at a given key.
 
         Args:
@@ -241,7 +241,7 @@ class database:
             value (any): The value to check for in the key.
 
         Returns:
-            str or str[]: Returns either the matching row, or a list of them if multiple matches are found.
+            str or str[]: Returns either the matching row, or a list of them if multiple matches are found. Empty list if no matches.
         """
         foundRows = []
         lines = self.getLines()
@@ -256,8 +256,13 @@ class database:
                 else:
                 #    print('Failed to convert to json')
                     continue
-            if rowJson[key] == value:
-                foundRows.append(rowJson)
+            match caseSensitive:
+                case True:
+                    if rowJson[key] == value:
+                        foundRows.append(rowJson)
+                case False:
+                    if rowJson[key].lower() == value.lower():
+                        foundRows.append(rowJson)
         if len(foundRows) == 1:
             return foundRows[0]
         else:
@@ -289,7 +294,7 @@ class database:
         else:
             return foundVals
 
-    def getRowNumbers(self, targetKey, value): #Maybe should rework this to allow conditions, not just matching...
+    def getRowNumbers(self, targetKey, value, fuzzy=False, caseSensitive=False): #Maybe should rework this to allow conditions, not just matching...
         """Returns an array(or just the value if singular) from the rows that match.
 
         Args:
@@ -308,8 +313,24 @@ class database:
                 rowJson = json.loads(jsonString)
             except:
                 continue
-            if rowJson[targetKey] == value:
-                foundRowNumbers.append(rowJson['row'])
+
+            match caseSensitive:
+                case True:
+                    if fuzzy:
+                        if rowJson[targetKey].count(value) > 0:
+                            foundRowNumbers.append(rowJson['row'])
+                    else:
+                        if rowJson[targetKey] == value:
+                            foundRowNumbers.append(rowJson['row'])
+                case False:
+                    if fuzzy:
+                        if str(rowJson[targetKey]).lower().count(value.lower()) > 0:
+                            foundRowNumbers.append(rowJson['row'])
+                    else:
+                        print(f'{str(rowJson[targetKey]).lower()} == {value.lower()}')
+                        if str(rowJson[targetKey]).lower() == value.lower():
+                            foundRowNumbers.append(rowJson['row'])
+
         if len(foundRowNumbers) == 1:
             return foundRowNumbers[0]
         else:

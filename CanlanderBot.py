@@ -27,6 +27,7 @@ def createDatabaseEntry(dataStruct):
     except:
         return False
     
+
 def getPoints(decklist):
     decklist = decklist.split("\n")
     i = 0
@@ -45,6 +46,7 @@ def getPoints(decklist):
 
     return canlanderPoints.listPointedCards(decklist)
 
+
 def findDeckByUrl(url):
     foundDeck = decklistDatabase.getRowNumbers('url', url)
     foundDeckRowID = -1
@@ -52,9 +54,189 @@ def findDeckByUrl(url):
         foundDeckRowID = foundDeck
     return foundDeckRowID
 
-def findDecksBy(criterion, value):
-    foundDeckRowIDs = decklistDatabase.getRowNumbers(criterion, value)
+
+def getColorsDict(value):
+    outputColors = {'white': 'false', 'blue': 'false', 'black': 'false', 'red': 'false', 'green': 'false'}
+    wubrg = {
+        'w': ['white'],
+        'u': ['blue'],
+        'b': ['black'],
+        'r': ['red'],
+        'g': ['green']
+        }
+    
+    colorDictionary= {
+        'abzan': ['white', 'black', 'green'],
+        'naya': ['white', 'red', 'green'],
+        'sultai': ['blue', 'black', 'green'],
+        'jund': ['red', 'black', 'green'],
+        'jeskai': ['white', 'blue', 'red'],
+        'grixis': ['blue', 'black', 'red'],
+        'mardu': ['white', 'black', 'red'],
+        'temur': ['blue', 'green', 'red'],
+        'esper': ['blue', 'black', 'white'],
+        'bant': ['blue', 'white', 'green'],
+        'azorius': ['white', 'blue'],
+        'boros': ['white', 'red'],
+        'dimir': ['blue', 'black'],
+        'golgari': ['black', 'green'],
+        'rakdos': ['black', 'red'],
+        'selesnya': ['green', 'white'],
+        'orzhov': ['white', 'black'],
+        'gruul': ['green', 'red'],
+        'izzet': ['blue', 'red'],
+        'simic': ['blue', 'green'],
+    }
+    for colorName in colorDictionary:
+        if colorName in value:
+            for each in colorDictionary[colorName]:
+                outputColors[each] = 'True'
+    if outputColors == {'white': 'false', 'blue': 'false', 'black': 'false', 'red': 'false', 'green': 'false'}:
+        for colorName in wubrg:
+            if colorName in value:
+                for each in wubrg[colorName]:
+                    outputColors[each] = 'True'
+    return str(outputColors)
+
+
+
+def findUser(value):
+    pass
+
+
+def getCurrentDate():
+    return str(date.today())
+
+
+def findDecksAfterDate(value):
+    print(value)
+    currentDate = getCurrentDate()
+    date = currentDate.replace('/', '-').replace('.', '-')
+    years = date[0]
+    months = date[1]
+    days = date[2]
+    currentDateTotalDays = days + (months*30) + (years*365)
+
+    try: # look for X days/weeks/months ago and newer.
+        split = value.lower().split(" ")
+        quantity = split[0]
+        unit = split[1]
+        match unit:
+            case 'day':
+                quantity = quantity
+            case 'week':
+                quantity *= 7
+            case 'month':
+                quantity *= 30
+            case 'year':
+                quantity *= 365
+            case 'days':
+                quantity = quantity
+            case 'weeks':
+                quantity *= 7
+            case 'months':
+                quantity *= 30
+            case 'years':
+                quantity *= 365
+            case _:
+                raise Exception
+        inputTotalDays = currentDateTotalDays - quantity
+    except: # look for all newer than the date given by value. Date given in YYYY-MM-DD format.
+        date = value.replace('/', '-').replace('.', '-')
+        years = date[0]
+        months = date[1]
+        days = date[2]
+        inputTotalDays = days + (months*30) + (years*365)
+
+    foundDeckRowIDs = []
+    stillFindingRows = True
+    i = 1
+    while stillFindingRows:
+        rowData = decklistDatabase.getRows('row', i)
+        if rowData != []:
+            rowDate = rowData['submission date']
+            rowDate = rowDate.replace('/', '-').replace('.', '-')
+            years = rowDate[0]
+            months = rowDate[1]
+            days = rowDate[2]
+            rowDateTotalDays = days + (months*30) + (years*365)
+            if inputTotalDays <= rowDateTotalDays:
+                foundDeckRowIDs.append(rowData['row'])
+        else:
+            stillFindingRows = False
+        i += 1
     return foundDeckRowIDs
+        
+
+def findDecksUnderBudget(value):
+    pass
+
+
+def findDecksBy(criterion, value):
+    print(f'{criterion} - {value}')
+    foundDeckRowIDs = -1
+    key = criterion.lower()
+    match key:
+        case 'link':
+            key = 'url'
+        case 'color':
+            key = 'colors'
+        case 'date':
+            key = 'submission date'
+        case 'meta':
+            key = 'region'
+        case 'budget':
+            key = 'price'
+        case 'deckname':
+            key = 'deckName'
+        case 'deck name':
+            key = 'deckName'
+        case 'name':
+            key = 'deckName'
+        case 'archetype':
+            key = 'archetype'
+
+    match key:
+        case 'deckName':
+            foundDeckRowIDs = decklistDatabase.getRowNumbers(key, value, True)
+        case 'colors':
+            foundDeckRowIDs = decklistDatabase.getRowNumbers(key, getColorsDict(value))
+        case 'tags':
+            foundDeckRowIDs = decklistDatabase.getRowNumbers(key, value, True)
+        case 'user':
+            findUser(value)
+        case 'points':
+            foundDeckRowIDs = decklistDatabase.getRowNumbers(key, value, True)
+        case 'submission date':
+            findDecksAfterDate(value)
+        case 'price':
+            findDecksUnderBudget(value)
+        case 'url':
+            foundDeckRowIDs = decklistDatabase.getRowNumbers(key, value)
+        case 'region':
+            foundDeckRowIDs = decklistDatabase.getRowNumbers(key, value)
+        case 'archetype':
+            foundDeckRowIDs = set()
+            tagMatches = decklistDatabase.getRowNumbers('tags', value, True)
+            nameMatches = decklistDatabase.getRowNumbers('deckName', value, True)
+            if type(tagMatches) == list:
+                for each in tagMatches:
+                    foundDeckRowIDs.add(each)
+            else:
+                foundDeckRowIDs.add(tagMatches)
+            if type(nameMatches) == list:
+                for each in nameMatches:
+                    foundDeckRowIDs.add(each)
+            else:
+                foundDeckRowIDs.add(nameMatches)
+            unique = []
+            for each in foundDeckRowIDs:
+                if each not in unique:
+                    unique.append(each)
+            foundDeckRowIDs = unique
+
+    return foundDeckRowIDs
+
 
 def updateDatabaseEntry(rowID, deckData):
     try:
@@ -69,15 +251,13 @@ def updateDatabaseEntry(rowID, deckData):
     except:
         return False
 
+
 def addNewDatabaseEntry(deckData):
     try:
         decklistDatabase.addRow(deckData)
         return True
     except:
         return False
-
-def getCurrentDate():
-    return str(date.today())
 
 
 # ----------------------------------MOD_COMMANDS------------------------------------- #
@@ -133,12 +313,22 @@ async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
     await response.delete()
     
 @bot.command()
-async def searchDecks(ctx, **criteria): ## --------------------------Look inot **kwargs more!
+async def searchDecks(ctx, *args): ## --------------------------Look into **kwargs more!
+    criteria = {}
+    for each in args:
+        pair = each.split("=")
+        key = pair[0]
+        value = pair[1]
+        criteria.update({key: value})
+
     loadingMessage = await ctx.send("Searching database...")
     allResultIDs = []
     for criterion in criteria:
         resultsForThis = findDecksBy(criterion, criteria[criterion])
-        allResultIDs.append(resultsForThis)
+        if type(resultsForThis) != list:
+            allResultIDs.append(resultsForThis)
+        else:
+            allResultIDs.extend(resultsForThis)
     
     fullMatches = set()
     for each in allResultIDs:
@@ -149,8 +339,9 @@ async def searchDecks(ctx, **criteria): ## --------------------------Look inot *
     for unique in fullMatches:
         deckID = unique
         deckName = decklistDatabase.getValue(unique, 'deckName')
+        subDate = decklistDatabase.getValue(unique, 'submission date')
         url = decklistDatabase.getValue(unique, 'url')
-        outputLines.append(f'ID: {deckID} - [{deckName}] - {url}')
+        outputLines += f'ID: {deckID} - {subDate} - {deckName} {url}\n'
     
     await loadingMessage.delete()
     if outputLines == "":
