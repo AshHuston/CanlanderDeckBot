@@ -372,6 +372,11 @@ async def updateDecks(ctx):
     # Goes though deck database. If any decks have changed on moxfield, update them.
     pass
     
+
+#    ---------------------------------------------------------------------------------------------  WORK ON HELP COMMAND/TOOLTIPS AND BAD-CALL HANDLING
+
+
+
 # ----------------------------------COMMANDS----------------------------------------- #
 @bot.command(aliases=['pointscheck'])
 async def pointsCheck(ctx, url):
