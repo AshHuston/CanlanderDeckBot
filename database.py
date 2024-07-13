@@ -227,7 +227,11 @@ class database:
             any: The value of the searched row/key.
         """
         lines = self.getLines()
-        dict = ast.literal_eval(lines[row])
+        try:
+            dict = ast.literal_eval(lines[int(row)])
+        except:
+            print(f"Row {row} does not exist.")
+            raise Exception
         jsonString = json.dumps(dict)
         dbEntry = json.loads(jsonString)
         value = dbEntry[key]
@@ -261,7 +265,7 @@ class database:
                     if rowJson[key] == value:
                         foundRows.append(rowJson)
                 case False:
-                    if rowJson[key].lower() == value.lower():
+                    if str(rowJson[key]).lower() == str(value).lower():
                         foundRows.append(rowJson)
         if len(foundRows) == 1:
             return foundRows[0]
@@ -294,7 +298,7 @@ class database:
         else:
             return foundVals
 
-    def getRowNumbers(self, targetKey, value, fuzzy=False, caseSensitive=False): #Maybe should rework this to allow conditions, not just matching...
+    def getRowNumbers(self, targetKey, valueAny, fuzzy=False, caseSensitive=False): #Maybe should rework this to allow conditions, not just matching...
         """Returns an array(or just the value if singular) from the rows that match.
 
         Args:
@@ -304,6 +308,7 @@ class database:
         Returns:
             any: Returns either the row number of the matching row, or a list of them if multiple matches are found.
         """
+        value = str(valueAny)
         foundRowNumbers = []
         lines = self.getLines()
         for rows in lines:
@@ -327,7 +332,6 @@ class database:
                         if str(rowJson[targetKey]).lower().count(value.lower()) > 0:
                             foundRowNumbers.append(rowJson['row'])
                     else:
-                        print(f'{str(rowJson[targetKey]).lower()} == {value.lower()}')
                         if str(rowJson[targetKey]).lower() == value.lower():
                             foundRowNumbers.append(rowJson['row'])
 

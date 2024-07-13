@@ -6,6 +6,7 @@ import moxfieldDecklist
 import canlanderPoints
 from datetime import date
 import time
+from thefuzz import fuzz
 
 decklistDatabase = database.database('canlanderDecksDB', ['deckName', 'colors', 'tags', 'user', 'points', 'url', 'decklist', 'submission date', 'region', 'price'])
 
@@ -56,7 +57,7 @@ def findDeckByUrl(url):
 
 
 def getColorsDict(value):
-    outputColors = {'white': 'false', 'blue': 'false', 'black': 'false', 'red': 'false', 'green': 'false'}
+    outputColors = {'white': 'false', 'blue': 'false', 'black': 'false', 'red': 'false', 'green': 'false', 'exactColorsOnly': 'false'}
     wubrg = {
         'w': ['white'],
         'u': ['blue'],
@@ -91,17 +92,41 @@ def getColorsDict(value):
         if colorName in value:
             for each in colorDictionary[colorName]:
                 outputColors[each] = 'True'
-    if outputColors == {'white': 'false', 'blue': 'false', 'black': 'false', 'red': 'false', 'green': 'false'}:
+    if outputColors == {'white': 'false', 'blue': 'false', 'black': 'false', 'red': 'false', 'green': 'false', 'exactColorsOnly': 'false'}:
         for colorName in wubrg:
             if colorName in value:
                 for each in wubrg[colorName]:
                     outputColors[each] = 'True'
+    if "*" in value:
+        outputColors['exactColorsOnly'] = 'True'
     return str(outputColors)
 
 
-
-def findUser(value):
-    pass
+def findUser(username):
+    foundDeckRowIDs = []
+    stillFindingRows = True
+    i = 1
+    perfectMatch = None
+    while stillFindingRows:
+        rowData = decklistDatabase.getRows('row', i)
+        if rowData != []:
+            matchPercent = fuzz.ratio(username, rowData['user'])
+            if matchPercent == 100:
+                perfectMatch = rowData["user"]
+            if matchPercent >= 70:
+                foundDeckRowIDs.append(rowData['row'])
+        else:
+            stillFindingRows = False
+        i += 1
+    
+    if perfectMatch:
+        i = len(foundDeckRowIDs)-1
+        while i>=0:
+            rowUser = decklistDatabase.getRows('row', foundDeckRowIDs[i])["user"]
+            if rowUser != perfectMatch:
+                del foundDeckRowIDs[i]
+            i -= 1
+    return foundDeckRowIDs
 
 
 def getCurrentDate():
@@ -109,7 +134,6 @@ def getCurrentDate():
 
 
 def findDecksAfterDate(value):
-    print(value)
     currentDate = getCurrentDate()
     date = currentDate.replace('/', '-').replace('.', '-')
     years = date[0]
@@ -166,14 +190,89 @@ def findDecksAfterDate(value):
             stillFindingRows = False
         i += 1
     return foundDeckRowIDs
-        
 
-def findDecksUnderBudget(value):
-    pass
+
+def getEntriesByColor(key, enteredColors):
+    enteredColorDict = eval(enteredColors)
+    exactColorsOnly = enteredColorDict['exactColorsOnly']
+    del enteredColorDict['exactColorsOnly']
+    foundDeckRowIDs = decklistDatabase.getRowNumbers(key, enteredColorDict)
+    if type(foundDeckRowIDs) != list:
+            foundDeckRowIDs = [foundDeckRowIDs]
+
+    if exactColorsOnly == 'false':
+        i = 1
+        while i>0:
+            try:
+                rowColors = decklistDatabase.getValue(i, 'colors')
+            except:
+                i = -1
+                continue
+            dontAdd = False
+            for each in enteredColorDict:
+                if enteredColorDict[each] == 'True' and rowColors[each] == 'False':
+                    dontAdd = True
+            if dontAdd == False:
+                foundDeckRowIDs.append(i)
+            i += 1
+
+        unique = []
+        for each in foundDeckRowIDs:
+            if each not in unique:
+                unique.append(each)
+        foundDeckRowIDs = unique
+
+
+    return foundDeckRowIDs
+
+
+def findDecksUnderBudget(budget):
+    foundDeckRowIDs = []
+    if "$" in budget:
+        budgetFloat = float(budget.replace("$",""))
+    i = 1
+    while i>0:
+            try:
+                rowPrice = decklistDatabase.getValue(i, 'price')
+                if "$" in rowPrice:
+                    rowPrice = float(rowPrice.replace("$","").replace(",",""))
+            except:
+                print("error in findDecksUnderBudget()")
+                i = -1
+                continue
+            dontAdd = True
+            if budgetFloat > rowPrice:
+                dontAdd = False
+            if dontAdd == False:
+                foundDeckRowIDs.append(i)
+            i += 1
+
+    return foundDeckRowIDs
+
+
+def findDecksWithCards(cards):
+    foundDeckRowIDs = []
+    cardsList = cards.lower().split("/")
+    i = 1
+    while i>0:
+            try:
+                fullDeckList = decklistDatabase.getValue(i, 'decklist').lower()
+            except:
+                i = -1
+                continue
+            dontAdd = False
+            for each in cardsList:
+                if fullDeckList.count(each) < 1:
+                    dontAdd = True
+            if dontAdd == False:
+                foundDeckRowIDs.append(i)
+            i += 1
+
+    return foundDeckRowIDs
 
 
 def findDecksBy(criterion, value):
-    print(f'{criterion} - {value}')
+    print(f'findDecksBy(): {criterion} - {value}')
     foundDeckRowIDs = -1
     key = criterion.lower()
     match key:
@@ -195,26 +294,32 @@ def findDecksBy(criterion, value):
             key = 'deckName'
         case 'archetype':
             key = 'archetype'
+        case 'card':
+            key = 'cards'
+        case 'author':
+            key = 'user'
 
     match key:
         case 'deckName':
             foundDeckRowIDs = decklistDatabase.getRowNumbers(key, value, True)
         case 'colors':
-            foundDeckRowIDs = decklistDatabase.getRowNumbers(key, getColorsDict(value))
+            foundDeckRowIDs = getEntriesByColor(key, getColorsDict(value))
         case 'tags':
             foundDeckRowIDs = decklistDatabase.getRowNumbers(key, value, True)
         case 'user':
-            findUser(value)
+            foundDeckRowIDs = findUser(value)
         case 'points':
             foundDeckRowIDs = decklistDatabase.getRowNumbers(key, value, True)
         case 'submission date':
-            findDecksAfterDate(value)
+            foundDeckRowIDs = findDecksAfterDate(value)
         case 'price':
-            findDecksUnderBudget(value)
+            foundDeckRowIDs = findDecksUnderBudget(value)
         case 'url':
             foundDeckRowIDs = decklistDatabase.getRowNumbers(key, value)
         case 'region':
             foundDeckRowIDs = decklistDatabase.getRowNumbers(key, value)
+        case 'cards':
+            foundDeckRowIDs = findDecksWithCards(value)
         case 'archetype':
             foundDeckRowIDs = set()
             tagMatches = decklistDatabase.getRowNumbers('tags', value, True)
@@ -235,6 +340,7 @@ def findDecksBy(criterion, value):
                     unique.append(each)
             foundDeckRowIDs = unique
 
+    print(f'Found rows: {foundDeckRowIDs}')
     return foundDeckRowIDs
 
 
@@ -267,7 +373,7 @@ async def updateDecks(ctx):
     pass
     
 # ----------------------------------COMMANDS----------------------------------------- #
-@bot.command()
+@bot.command(aliases=['pointscheck'])
 async def pointsCheck(ctx, url):
     loadingMessage = await ctx.send("Checking...")
     deckInfo = moxfieldDecklist.getDeckInfo(url)
@@ -275,7 +381,7 @@ async def pointsCheck(ctx, url):
     await loadingMessage.delete()
     await ctx.send(points)
     
-@bot.command()
+@bot.command(aliases=['submitDeck', 'submitdeck', 'savedeck'])
 async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
     loadingMessage = await ctx.send("Uploading to database...")
     moxfieldDeckInfo = moxfieldDecklist.getDeckInfo(moxfieldLink)
@@ -312,8 +418,9 @@ async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
     time.sleep(5)
     await response.delete()
     
-@bot.command()
-async def searchDecks(ctx, *args): ## --------------------------Look into **kwargs more!
+@bot.command(aliases=['listDecks', 'findDecks', 'finddecks', 'listdecks', 'searchdecks', 'listDeck', 'findDeck', 'finddeck', 'listdeck', 'searchdeck', 'searchDeck'])
+async def searchDecks(ctx, *args):
+    embed = discord.Embed()
     criteria = {}
     for each in args:
         pair = each.split("=")
@@ -341,18 +448,44 @@ async def searchDecks(ctx, *args): ## --------------------------Look into **kwar
         deckName = decklistDatabase.getValue(unique, 'deckName')
         subDate = decklistDatabase.getValue(unique, 'submission date')
         url = decklistDatabase.getValue(unique, 'url')
-        outputLines += f'ID: {deckID} - {subDate} - {deckName} {url}\n'
-    
+        outputLines += f'ID: {deckID} - {subDate} - [{deckName}]({url})\n'
+
     await loadingMessage.delete()
     if outputLines == "":
         await ctx.send('Sorry, no decks found.')
     else:
-        await ctx.send(outputLines)
-    #embed = discord.Embed()
-    #embed.description = outputLines
-    #await ctx.send(embed=embed)
+        embed.description = outputLines
+        await ctx.send(embed=embed)
 
-
+@bot.command(aliases=['deckinfo', 'getDeckInfo', 'getdeckinfo'])
+async def deckInfo(ctx, id):
+    deckName = decklistDatabase.getValue(id, 'deckName')
+    subDate = decklistDatabase.getValue(id, 'submission date')
+    url = decklistDatabase.getValue(id, 'url')
+    colorsDict = decklistDatabase.getValue(id, 'colors')
+    colors = ""
+    if colorsDict['white'] == 'True':
+        colors += 'W'
+    if colorsDict['blue'] == 'True':
+        colors += 'U'
+    if colorsDict['black'] == 'True':
+        colors += 'B'
+    if colorsDict['red'] == 'True':
+        colors += 'R'
+    if colorsDict['green'] == 'True':
+        colors += 'G'
+    tagsList = eval(decklistDatabase.getValue(id, 'tags'))
+    tags = ""
+    for tag in tagsList:
+        tags += f'{tag}, '
+    user = decklistDatabase.getValue(id, 'user')
+    points = decklistDatabase.getValue(id, 'points')
+    region = decklistDatabase.getValue(id, 'region')
+    price = decklistDatabase.getValue(id, 'price')
+    embed = discord.Embed()
+    embed.description = f'{subDate}  -  User: {user}  -  [{deckName}]({url})\nColors: {colors}  -  Region: {region}  -  {price}\nTags:{tags}\nPoints:\n{points}'
+    await ctx.send(embed=embed)
+    
 # ---------- Discord stuff. Don't touch it. ----------
 try:
     token = botAuthToken or ""
