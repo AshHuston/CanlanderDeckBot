@@ -130,7 +130,15 @@ def findUser(username):
 
 
 def getCurrentDate():
-    return str(date.today())
+    return formatDate(str(date.today()))
+
+
+def formatDate(inputDate): #TODO Needs to format the date to DD-MM-YYY
+    pass
+
+
+def getUpdateDate(inputDate): #TODO Needs to return last date updated.
+    pass
 
 
 def findDecksAfterDate(value):
@@ -398,7 +406,7 @@ async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
         "points": getPoints(moxfieldDeckInfo['decklist']), 
         "url": moxfieldLink, 
         "decklist": moxfieldDeckInfo['decklist'], 
-        "submission date": getCurrentDate(), 
+        "submission date": getUpdateDate(moxfieldDeckInfo['lastUpdated']), 
         "region": region,
         "price": moxfieldDeckInfo['price']
         }

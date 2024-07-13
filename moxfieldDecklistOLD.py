@@ -2,12 +2,10 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By 
 from selenium.webdriver.chrome.options import Options
-import time
 
-def getDeckInfo(url, headless=True):
+def getDeckInfo(url):
     options = Options()
-    if headless:
-        options.add_argument("--headless=new")
+    options.add_argument("--headless=new")
     driver = webdriver.Chrome(options=options) 
     driver.get(url)
     waitSeconds = 20
@@ -20,6 +18,7 @@ def getDeckInfo(url, headless=True):
     exportBtn.send_keys(Keys.RETURN)
     decklistTextBox = driver.find_element(By.NAME, "mtgo")
     decklist = decklistTextBox.get_attribute('value')
+    #.replace("'", "`")
 
 
     decklistTextBox.send_keys(Keys.ESCAPE)
@@ -44,37 +43,14 @@ def getDeckInfo(url, headless=True):
     tcgRadio = driver.find_element(By.ID, 'affiliate-tcgplayer')
     tcgRadio.click()
     tcgRadio.send_keys(Keys.RETURN)
-    #price = driver.find_element(By.ID, 'shoppingcart').text
-    possiblePrices = driver.find_elements(By.CLASS_NAME, 'ms-1')
-    textCandidates =[]
-    for each in possiblePrices:
-        textCandidates.append(each.text)
-    price = textCandidates[-1]
+    price = driver.find_element(By.ID, 'shoppingcart').text
 
-    tcgRadio.send_keys(Keys.ESCAPE)
-    
-    lastUpdatedLable = driver.find_element(By.ID, "lastupdated")
-    lastUpdatedLable.click()
-    lastUpdateDateLable = driver.find_elements(By.CLASS_NAME, "cursor-help")[0]#.text
-    while True:
-        lastUpdateDateLable.click()
-        try:
-            lastUpdateDate = driver.find_element(By.XPATH, "//div[@style = 'transform: translateY(1px);']").text
-            print(lastUpdateDate)
-            break
-        except:
-            continue
-        
-    
     decklistInfo = {
+        "decklist": decklist,
         "deckName": deckName,
         "colors": colors,
-        "price": price,
-        "lastUpdated": lastUpdateDate,
-        "decklist": decklist
+        "price": price
     }
     
     driver.close()
     return decklistInfo
-
-print(getDeckInfo('https://www.moxfield.com/decks/kIe_Vt25jk6-e4ZCkFIeTg', False))
