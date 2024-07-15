@@ -1,1 +1,0 @@
-/searchDecks colors=[u,r,g], tags=[midrange, budget]    // can include region, name, tags, color, user, cards, submission date, price

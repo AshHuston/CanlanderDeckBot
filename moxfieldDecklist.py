@@ -2,7 +2,6 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By 
 from selenium.webdriver.chrome.options import Options
-import time
 
 def getDeckInfo(url, headless=True):
     options = Options()
@@ -60,7 +59,6 @@ def getDeckInfo(url, headless=True):
         lastUpdateDateLable.click()
         try:
             lastUpdateDate = driver.find_element(By.XPATH, "//div[@style = 'transform: translateY(1px);']").text
-            print(lastUpdateDate)
             break
         except:
             continue
@@ -77,4 +75,4 @@ def getDeckInfo(url, headless=True):
     driver.close()
     return decklistInfo
 
-print(getDeckInfo('https://www.moxfield.com/decks/kIe_Vt25jk6-e4ZCkFIeTg', False))
+#print(getDeckInfo('https://www.moxfield.com/decks/kIe_Vt25jk6-e4ZCkFIeTg', False))

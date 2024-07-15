@@ -1,6 +1,6 @@
 import json
 import os
-import secrets
+# import secrets
 # import cryptography
 import random
 import ast
@@ -199,6 +199,7 @@ class database:
         """
         lines = self.getLines()
         if len(lines)<row:
+            print("ERROR: '" + row + "' out of range for database '" + self.dbName + "'.")
             raise Exception("ERROR: '" + row + "' out of range for database '" + self.dbName + "'.")
         dict = ast.literal_eval(data)
         jsonString = json.dumps(dict)
@@ -207,6 +208,7 @@ class database:
         for each in jsonData:
             varsAdded.append(each)
             if each not in self.columnNames:
+                print("ERROR: '" + each + "' is not a valid key for database '" + self.dbName + "'.")
                 raise Exception("ERROR: '" + each + "' is not a valid key for database '" + self.dbName + "'.")
         for cols in self.columnNames:
             if cols not in varsAdded and cols != "":

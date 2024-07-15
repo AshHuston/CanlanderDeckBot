@@ -1,5 +1,4 @@
 import database
-import os
 import discord
 from discord.ext import commands
 import moxfieldDecklist
@@ -7,18 +6,25 @@ import canlanderPoints
 from datetime import date
 import time
 from thefuzz import fuzz
+import validators
+import os
 
-decklistDatabase = database.database('canlanderDecksDB', ['deckName', 'colors', 'tags', 'user', 'points', 'url', 'decklist', 'submission date', 'region', 'price'])
-
+databaseUpdating = False #Will use to disable everything when need be
+decklistDatabase = database.database('canlanderDecksDB', ['deckName', 'colors', 'tags', 'user', 'points', 'url', 'decklist', 'last updated', 'region', 'price'])
 botAuthToken = 'MTI1ODUwMjkzNTc4NTI0MjY2NQ.G5Sxwg.eFvhLii4x1nz8FOO5uUto4dUZOi8mSKR8k_95A'
 
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix='/', intents=intents)    
+helpCommand = commands.DefaultHelpCommand(no_category = 'Commands', dm_help = True)
+bot = commands.Bot(command_prefix='/', intents=intents, help_command=helpCommand)    
 
 @bot.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(bot))
+
+@bot.event
+async def on_command_error(ctx, error):
+    print(error)
 
 # ----------------------------------FUNCTIONS---------------------------------------- #
 def createDatabaseEntry(dataStruct):
@@ -28,7 +34,6 @@ def createDatabaseEntry(dataStruct):
     except:
         return False
     
-
 def getPoints(decklist):
     decklist = decklist.split("\n")
     i = 0
@@ -47,14 +52,12 @@ def getPoints(decklist):
 
     return canlanderPoints.listPointedCards(decklist)
 
-
 def findDeckByUrl(url):
     foundDeck = decklistDatabase.getRowNumbers('url', url)
     foundDeckRowID = -1
     if foundDeck != []:
         foundDeckRowID = foundDeck
     return foundDeckRowID
-
 
 def getColorsDict(value):
     outputColors = {'white': 'false', 'blue': 'false', 'black': 'false', 'red': 'false', 'green': 'false', 'exactColorsOnly': 'false'}
@@ -101,7 +104,6 @@ def getColorsDict(value):
         outputColors['exactColorsOnly'] = 'True'
     return str(outputColors)
 
-
 def findUser(username):
     foundDeckRowIDs = []
     stillFindingRows = True
@@ -128,57 +130,26 @@ def findUser(username):
             i -= 1
     return foundDeckRowIDs
 
+def formatDate(inputDate):
+    split = inputDate.replace('-', ' ').replace('/', ' ').split()
+    year = split[0]
+    month = split[1]
+    day = split[2]
+    formatted = f'{month}/{day}/{year}'
+    return formatted
 
 def getCurrentDate():
     return formatDate(str(date.today()))
 
-
-def formatDate(inputDate): #TODO Needs to format the date to DD-MM-YYY
-    pass
-
-
-def getUpdateDate(inputDate): #TODO Needs to return last date updated.
-    pass
-
+def getUpdateDate(inputDate):
+    return inputDate.split(',')[0]
 
 def findDecksAfterDate(value):
-    currentDate = getCurrentDate()
-    date = currentDate.replace('/', '-').replace('.', '-')
-    years = date[0]
-    months = date[1]
-    days = date[2]
-    currentDateTotalDays = days + (months*30) + (years*365)
-
-    try: # look for X days/weeks/months ago and newer.
-        split = value.lower().split(" ")
-        quantity = split[0]
-        unit = split[1]
-        match unit:
-            case 'day':
-                quantity = quantity
-            case 'week':
-                quantity *= 7
-            case 'month':
-                quantity *= 30
-            case 'year':
-                quantity *= 365
-            case 'days':
-                quantity = quantity
-            case 'weeks':
-                quantity *= 7
-            case 'months':
-                quantity *= 30
-            case 'years':
-                quantity *= 365
-            case _:
-                raise Exception
-        inputTotalDays = currentDateTotalDays - quantity
-    except: # look for all newer than the date given by value. Date given in YYYY-MM-DD format.
-        date = value.replace('/', '-').replace('.', '-')
-        years = date[0]
-        months = date[1]
-        days = date[2]
-        inputTotalDays = days + (months*30) + (years*365)
+    date = value.replace('/', '-').replace('.', '-').split('-')
+    months = date[0]
+    days = date[1]
+    years = date[2]
+    inputTotalDays = days + (months*30) + (years*365)
 
     foundDeckRowIDs = []
     stillFindingRows = True
@@ -186,11 +157,11 @@ def findDecksAfterDate(value):
     while stillFindingRows:
         rowData = decklistDatabase.getRows('row', i)
         if rowData != []:
-            rowDate = rowData['submission date']
-            rowDate = rowDate.replace('/', '-').replace('.', '-')
-            years = rowDate[0]
-            months = rowDate[1]
-            days = rowDate[2]
+            rowDate = rowData['last updated']
+            rowDate = rowDate.replace('/', '-').replace('.', '-').split('-')
+            months = rowDate[0]
+            days = rowDate[1]
+            years = rowDate[2]
             rowDateTotalDays = days + (months*30) + (years*365)
             if inputTotalDays <= rowDateTotalDays:
                 foundDeckRowIDs.append(rowData['row'])
@@ -198,7 +169,6 @@ def findDecksAfterDate(value):
             stillFindingRows = False
         i += 1
     return foundDeckRowIDs
-
 
 def getEntriesByColor(key, enteredColors):
     enteredColorDict = eval(enteredColors)
@@ -233,7 +203,6 @@ def getEntriesByColor(key, enteredColors):
 
     return foundDeckRowIDs
 
-
 def findDecksUnderBudget(budget):
     foundDeckRowIDs = []
     if "$" in budget:
@@ -257,7 +226,6 @@ def findDecksUnderBudget(budget):
 
     return foundDeckRowIDs
 
-
 def findDecksWithCards(cards):
     foundDeckRowIDs = []
     cardsList = cards.lower().split("/")
@@ -270,14 +238,13 @@ def findDecksWithCards(cards):
                 continue
             dontAdd = False
             for each in cardsList:
-                if fullDeckList.count(each) < 1:
+                if fullDeckList.count(each.strip()) < 1:
                     dontAdd = True
             if dontAdd == False:
                 foundDeckRowIDs.append(i)
             i += 1
 
     return foundDeckRowIDs
-
 
 def findDecksBy(criterion, value):
     print(f'findDecksBy(): {criterion} - {value}')
@@ -289,7 +256,7 @@ def findDecksBy(criterion, value):
         case 'color':
             key = 'colors'
         case 'date':
-            key = 'submission date'
+            key = 'last updated'
         case 'meta':
             key = 'region'
         case 'budget':
@@ -318,7 +285,7 @@ def findDecksBy(criterion, value):
             foundDeckRowIDs = findUser(value)
         case 'points':
             foundDeckRowIDs = decklistDatabase.getRowNumbers(key, value, True)
-        case 'submission date':
+        case 'last updated':
             foundDeckRowIDs = findDecksAfterDate(value)
         case 'price':
             foundDeckRowIDs = findDecksUnderBudget(value)
@@ -351,7 +318,6 @@ def findDecksBy(criterion, value):
     print(f'Found rows: {foundDeckRowIDs}')
     return foundDeckRowIDs
 
-
 def updateDatabaseEntry(rowID, deckData):
     try:
         if len(deckData['tags'])<1:
@@ -365,7 +331,6 @@ def updateDatabaseEntry(rowID, deckData):
     except:
         return False
 
-
 def addNewDatabaseEntry(deckData):
     try:
         decklistDatabase.addRow(deckData)
@@ -373,29 +338,115 @@ def addNewDatabaseEntry(deckData):
     except:
         return False
 
-
 # ----------------------------------MOD_COMMANDS------------------------------------- #
-@bot.command()
+@bot.command(hidden=True, aliases=['updatedecks'])
 async def updateDecks(ctx):
-    # Goes though deck database. If any decks have changed on moxfield, update them.
-    pass
+    isMod = False
+    for each in ctx.author.roles:
+        if each.name.lower() == 'moderator':
+            isMod = True
+
+    if isMod:
+        loadingMessage = await ctx.send('Updating database. This may take a while.')
+        databaseUpdating = True
+        start = time.time()
+        oldDB = open('db_canlanderDecksDB.txt', 'r')
+        oldDB_text = oldDB.read()
+        oldDB.close()
+        currentDate = getCurrentDate().replace('/', '-')
+        backupDBName = f'dbBackup_{currentDate}'
+        
+        try:
+                backup = open(f'{backupDBName}.txt', 'x')
+        except:
+            i = 1
+            while True:
+                try:
+                    backup = open(f'{backupDBName}({i}).txt', 'x')
+                    break
+                except:
+                    i += 1
+            
+        backup.write(oldDB_text)
+        backup.close()
+        i = 1
+        while i>0:
+            oldData = decklistDatabase.getRows('row', i)
+            if len(oldData) == 0:
+                break
+            moxfieldLink = oldData['url']
+            moxfieldDeckInfo = moxfieldDecklist.getDeckInfo(moxfieldLink)
+            deckData = {
+                "deckName": moxfieldDeckInfo['deckName'], 
+                "colors": moxfieldDeckInfo['colors'], 
+                "tags": f"{oldData['tags']}", 
+                "user": f"{oldData['user']}", 
+                "points": getPoints(moxfieldDeckInfo['decklist']), 
+                "url": moxfieldLink, 
+                "decklist": moxfieldDeckInfo['decklist'], 
+                "last updated": getUpdateDate(moxfieldDeckInfo['lastUpdated']), 
+                "region": decklistDatabase.getValue(i, 'url'),
+                "price": moxfieldDeckInfo['price']
+                }
+            
+            try:
+                decklistDatabase.updateRow(i, str(deckData))
+            except:
+                response = await ctx.send(f"error at db row {i}")
+            i += 1
+        databaseUpdating = False
+        file = discord.File("db_canlanderDecksDB.txt")
+        await ctx.send(file=file, content="New backup:")
+        end = time.time()
+        response = await ctx.send(f"Database finished updating in {round(end-start, 1)} seconds.")
+    else:
+        response = await ctx.send(f"Sorry! You do not have the required permissions to use this command.")
+    time.sleep(5)
+    await loadingMessage.delete()
+    await response.delete()
     
-
-#    ---------------------------------------------------------------------------------------------  WORK ON HELP COMMAND/TOOLTIPS AND BAD-CALL HANDLING
-
-
-
-# ----------------------------------COMMANDS----------------------------------------- #
-@bot.command(aliases=['pointscheck'])
+# ----------------------------------CLIENT_COMMANDS----------------------------------------- #
+@bot.command(aliases=['pointscheck', 'points'])
 async def pointsCheck(ctx, url):
+    """Get points from a moxfield link
+
+    Args:
+        url: The link to check
+
+    Raises:
+        commands.UserInputError: Entered an invalid url
+    """
+    if not validators.url(url):
+        raise commands.UserInputError
     loadingMessage = await ctx.send("Checking...")
     deckInfo = moxfieldDecklist.getDeckInfo(url)
     points = getPoints(deckInfo["decklist"])
     await loadingMessage.delete()
     await ctx.send(points)
-    
-@bot.command(aliases=['submitDeck', 'submitdeck', 'savedeck'])
+@pointsCheck.error
+async def pointsCheckError(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        msg = f'Missing required argument.\nCorrect syntax: /{ctx.invoked_with} moxfield_link'
+    if isinstance(error, commands.UserInputError):
+        msg = f'There was an input error.\nCorrect syntax: /{ctx.invoked_with} moxfield_link'
+    response = await ctx.send(msg)
+    time.sleep(15)
+    await response.delete().error
+
+@bot.command(aliases=['uploadDeck', 'uploaddeck', 'submitDeck', 'submitdeck', 'savedeck'])
 async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
+    """Upload a deck to the database. 
+
+    Args:
+        moxfieldLink: The decklist link from moxfield
+        region (optional): The geographical region that the deck is played in. Defaults to 'Online'.
+        tags (optional): *Must enter region before tags.* Any number of tags to help with searching.
+
+    Raises:
+        commands.UserInputError: Entered an invalid URL
+    """
+    if not validators.url(moxfieldLink):
+        raise commands.UserInputError
     loadingMessage = await ctx.send("Uploading to database...")
     moxfieldDeckInfo = moxfieldDecklist.getDeckInfo(moxfieldLink)
     deckData = {
@@ -406,7 +457,7 @@ async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
         "points": getPoints(moxfieldDeckInfo['decklist']), 
         "url": moxfieldLink, 
         "decklist": moxfieldDeckInfo['decklist'], 
-        "submission date": getUpdateDate(moxfieldDeckInfo['lastUpdated']), 
+        "last updated": getUpdateDate(moxfieldDeckInfo['lastUpdated']), 
         "region": region,
         "price": moxfieldDeckInfo['price']
         }
@@ -430,9 +481,36 @@ async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
     response = await ctx.send(msg)
     time.sleep(5)
     await response.delete()
+@saveDeck.error
+async def saveDeckError(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        msg = f'Missing required argument.\nCorrect syntax: /{ctx.invoked_with} moxfield_link region tag1 tag2...'
+    if isinstance(error, commands.UserInputError):
+        msg = f'There was an input error.\nCorrect syntax: /{ctx.invoked_with} moxfield_link region tag1 tag2...'
     
-@bot.command(aliases=['listDecks', 'findDecks', 'finddecks', 'listdecks', 'searchdecks', 'listDeck', 'findDeck', 'finddeck', 'listdeck', 'searchdeck', 'searchDeck'])
+    response = await ctx.send(msg)
+    time.sleep(15)
+    await response.delete()
+
+@bot.command(aliases=['listDecks', 'findDecks', 'finddecks', 'listdecks', 'searchdecks', 'listDeck', 'findDeck', 'finddeck', 'listdeck', 'searchdeck', 'searchDeck'], help="Search the database by any number of filters")
 async def searchDecks(ctx, *args):
+    """Search the database for decks matching any number of criteria. valid criteria include:
+    url: The moxfield link.
+    colors: wubrg, guilds, shards, or wedges. Colors will return decks with at minimum these colors. If you wish to search exact colors, include an asterisk "*" in the request. (colors=*rg)
+    date: The longest ago that results will have been updated.
+    meta: The region to search for. "Online" is a valid option.
+    budget: The highest pricepoint (tcgplayer low) to find decks.
+    deckname: Searches decks that contain the entered text in their name.
+    archetype: Searches tags and deckname for the entered text.
+    cards: Searches for decks with al listed cards. Separate cards by /. If there are spaces, you must wrap the whole critera in quotes like so "cards=force of will"
+    author: the discord user to search for submissions by.
+    tags: Searc for decks whos tags include all listed tags exactly. Multiple tags should be (in parenthsis, and, comma separated)
+
+    Args:
+        filters: Any number of filters, separated by spaces. Should be formatted like so: critera=value. e.g. colors=wu. 
+                  If a value contains spaces, such as "cards=lightning bolt/brainstorm", you must surround that entire criterion in quotes as shown here.
+
+    """
     embed = discord.Embed()
     criteria = {}
     for each in args:
@@ -459,7 +537,7 @@ async def searchDecks(ctx, *args):
     for unique in fullMatches:
         deckID = unique
         deckName = decklistDatabase.getValue(unique, 'deckName')
-        subDate = decklistDatabase.getValue(unique, 'submission date')
+        subDate = decklistDatabase.getValue(unique, 'last updated')
         url = decklistDatabase.getValue(unique, 'url')
         outputLines += f'ID: {deckID} - {subDate} - [{deckName}]({url})\n'
 
@@ -472,8 +550,13 @@ async def searchDecks(ctx, *args):
 
 @bot.command(aliases=['deckinfo', 'getDeckInfo', 'getdeckinfo'])
 async def deckInfo(ctx, id):
+    """Get database entry by ID#
+
+    Args:
+        id: The ID# of the entry to fetch.
+    """
     deckName = decklistDatabase.getValue(id, 'deckName')
-    subDate = decklistDatabase.getValue(id, 'submission date')
+    subDate = decklistDatabase.getValue(id, 'last updated')
     url = decklistDatabase.getValue(id, 'url')
     colorsDict = decklistDatabase.getValue(id, 'colors')
     colors = ""
@@ -498,7 +581,14 @@ async def deckInfo(ctx, id):
     embed = discord.Embed()
     embed.description = f'{subDate}  -  User: {user}  -  [{deckName}]({url})\nColors: {colors}  -  Region: {region}  -  {price}\nTags:{tags}\nPoints:\n{points}'
     await ctx.send(embed=embed)
-    
+@deckInfo.error
+async def deckInfoError(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        msg = f'Missing required argument.\nCorrect syntax: /{ctx.invoked_with} deckID#'
+    response = await ctx.send(msg)
+    time.sleep(15)
+    await response.delete()    
+
 # ---------- Discord stuff. Don't touch it. ----------
 try:
     token = botAuthToken or ""
