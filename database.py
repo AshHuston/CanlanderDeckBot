@@ -132,6 +132,7 @@ class database:
         """
         for each in dataDictionary:
             if each not in self.columnNames:
+                print('1')
                 raise Exception("ERROR: '" + each + "' is not a valid column for database '" + self.dbName + "'.")
 
         file = open(self.filename, 'a')
@@ -147,6 +148,7 @@ class database:
         """
         lines = self.getLines
         if len(lines)<row:
+            print('2')
             raise Exception("ERROR: '" + row + "' out of range for database '" + self.dbName + "'.")
         file = open(self.filename, 'w')
         for i in range(len(lines)):
@@ -171,6 +173,7 @@ class database:
         """
         lines = self.getLines()
         if len(lines)<row:
+            print('3')
             raise Exception("ERROR: '" + row + "' out of range for database '" + self.dbName + "'.")
         dbEntry = json.loads(lines[row].replace("\'", "\""))
         if key in self.columnNames:
@@ -183,6 +186,7 @@ class database:
             except:
                 return False
         else:
+            print('4')
             raise Exception("ERROR: '" + key + "' is not a valid key for database '" + self.dbName + "'.")
 
     def updateRow(self, row, data):
@@ -230,7 +234,7 @@ class database:
         """
         lines = self.getLines()
         try:
-            dict = ast.literal_eval(lines[int(row)])
+            dict = ast.literal_eval(lines[int(row)].replace('\"', '\''))
         except:
             print(f"Row {row} does not exist.")
             raise Exception
@@ -355,6 +359,7 @@ class database:
         try:
             self.columnNames.append(newColumnName)
         except:
+            print('5')
             raise Exception("Failed to add new column to database '" + self.dbName + "'.")
         
     def deleteColumn(self, columnName):
@@ -369,4 +374,5 @@ class database:
         try:
             self.columnNames.remove(columnName)
         except:
+            print('6')
             raise Exception("Failed to remove column from database '" + self.dbName + "'.")

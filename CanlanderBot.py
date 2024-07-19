@@ -405,6 +405,10 @@ async def updateDecks(ctx):
     await loadingMessage.delete()
     await response.delete()
     
+
+   # ------------------------------------------------------------------------------------------------------ DB cant see the file i guess? its not reading anything so like idk... ------------------------------# 
+
+
 # ----------------------------------CLIENT_COMMANDS----------------------------------------- #
 @bot.command(aliases=['pointscheck', 'points'])
 async def pointsCheck(ctx, url):
@@ -583,6 +587,7 @@ async def deckInfo(ctx, id):
     await ctx.send(embed=embed)
 @deckInfo.error
 async def deckInfoError(ctx, error):
+    msg = 'An unknown error occured. Try again or contact AshTheHorse.'
     if isinstance(error, commands.MissingRequiredArgument):
         msg = f'Missing required argument.\nCorrect syntax: /{ctx.invoked_with} deckID#'
     response = await ctx.send(msg)
