@@ -233,10 +233,16 @@ class database:
             any: The value of the searched row/key.
         """
         lines = self.getLines()
+       
         try:
-            dict = ast.literal_eval(lines[int(row)].replace('\"', '\''))
+            line = lines[int(row)].replace('\\\'', '\"')
         except:
             print(f"Row {row} does not exist.")
+            raise Exception
+        try:
+            dict = ast.literal_eval(line)  # ast.literal_eval()
+        except:
+            print("Eval error.")
             raise Exception
         jsonString = json.dumps(dict)
         dbEntry = json.loads(jsonString)

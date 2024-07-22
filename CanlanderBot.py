@@ -383,7 +383,7 @@ async def updateDecks(ctx):
                 "user": f"{oldData['user']}", 
                 "points": getPoints(moxfieldDeckInfo['decklist']), 
                 "url": moxfieldLink, 
-                "decklist": moxfieldDeckInfo['decklist'], 
+                "decklist": moxfieldDeckInfo['decklist'].replace("\\'s", "\'s").replace("\'s", "\\'s"), 
                 "last updated": getUpdateDate(moxfieldDeckInfo['lastUpdated']), 
                 "region": decklistDatabase.getValue(i, 'url'),
                 "price": moxfieldDeckInfo['price']
@@ -460,7 +460,7 @@ async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
         "user": f"{ctx.author}", 
         "points": getPoints(moxfieldDeckInfo['decklist']), 
         "url": moxfieldLink, 
-        "decklist": moxfieldDeckInfo['decklist'], 
+        "decklist": moxfieldDeckInfo['decklist'].replace("\'s", "\\'s"), 
         "last updated": getUpdateDate(moxfieldDeckInfo['lastUpdated']), 
         "region": region,
         "price": moxfieldDeckInfo['price']
@@ -487,6 +487,7 @@ async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
     await response.delete()
 @saveDeck.error
 async def saveDeckError(ctx, error):
+    msg = f'Unknown error in /{ctx.invoked_with}'
     if isinstance(error, commands.MissingRequiredArgument):
         msg = f'Missing required argument.\nCorrect syntax: /{ctx.invoked_with} moxfield_link region tag1 tag2...'
     if isinstance(error, commands.UserInputError):
