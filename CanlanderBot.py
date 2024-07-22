@@ -232,7 +232,7 @@ def findDecksWithCards(cards):
     i = 1
     while i>0:
             try:
-                fullDeckList = decklistDatabase.getValue(i, 'decklist').lower()
+                fullDeckList = decklistDatabase.getValue(i, 'decklist').lower().replace("/", " ")
             except:
                 i = -1
                 continue
@@ -377,18 +377,17 @@ async def updateDecks(ctx):
             moxfieldLink = oldData['url']
             moxfieldDeckInfo = moxfieldDecklist.getDeckInfo(moxfieldLink)
             deckData = {
-                "deckName": moxfieldDeckInfo['deckName'], 
+                "deckName": moxfieldDeckInfo['deckName'].replace('\'', ''), 
                 "colors": moxfieldDeckInfo['colors'], 
                 "tags": f"{oldData['tags']}", 
                 "user": f"{oldData['user']}", 
                 "points": getPoints(moxfieldDeckInfo['decklist']), 
                 "url": moxfieldLink, 
-                "decklist": moxfieldDeckInfo['decklist'].replace("\\'s", "\'s").replace("\'s", "\\'s"), 
-                "last updated": getUpdateDate(moxfieldDeckInfo['lastUpdated']), 
-                "region": decklistDatabase.getValue(i, 'url'),
+                "decklist": moxfieldDeckInfo['decklist'].replace("'", "").replace("/", " ").replace(",", "").replace(".", ""), 
+                "last updated": getUpdateDate(moxfieldDeckInfo['lastUpdated']).lstrip("0"), 
+                "region": decklistDatabase.getValue(i, 'region'),
                 "price": moxfieldDeckInfo['price']
                 }
-            
             try:
                 decklistDatabase.updateRow(i, str(deckData))
             except:
@@ -437,9 +436,9 @@ async def pointsCheckError(ctx, error):
     time.sleep(15)
     await response.delete().error
 
-@bot.command(aliases=['uploadDeck', 'uploaddeck', 'submitDeck', 'submitdeck', 'savedeck'])
+@bot.command(aliases=['uploadDeck', 'uploaddeck', 'submitDeck', 'submitdeck', 'savedeck', 'addDeck', 'adddeck'])
 async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
-    """Upload a deck to the database. 
+    """Upload a deck to the database
 
     Args:
         moxfieldLink: The decklist link from moxfield
@@ -454,14 +453,14 @@ async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
     loadingMessage = await ctx.send("Uploading to database...")
     moxfieldDeckInfo = moxfieldDecklist.getDeckInfo(moxfieldLink)
     deckData = {
-        "deckName": moxfieldDeckInfo['deckName'], 
+        "deckName": moxfieldDeckInfo['deckName'].replace('\'', ''), 
         "colors": moxfieldDeckInfo['colors'], 
         "tags": f"{tags}", 
         "user": f"{ctx.author}", 
         "points": getPoints(moxfieldDeckInfo['decklist']), 
         "url": moxfieldLink, 
-        "decklist": moxfieldDeckInfo['decklist'].replace("\'s", "\\'s"), 
-        "last updated": getUpdateDate(moxfieldDeckInfo['lastUpdated']), 
+        "decklist": moxfieldDeckInfo['decklist'].replace("'", "").replace("/", " ").replace(",", "").replace(".", ""), 
+        "last updated": getUpdateDate(moxfieldDeckInfo['lastUpdated']).lstrip("0"), 
         "region": region,
         "price": moxfieldDeckInfo['price']
         }
@@ -594,6 +593,42 @@ async def deckInfoError(ctx, error):
     response = await ctx.send(msg)
     time.sleep(15)
     await response.delete()    
+
+@bot.command(aliases=['howmanydecks', 'howManyDecks', 'deckcount'])
+async def deckCount(ctx):
+    """Says how many decks are in the database
+    """
+    i = 0
+    while True:
+        i += 1
+        row = decklistDatabase.getRows('row', i)
+        if row == []:
+            break
+    await ctx.send(f'There are currently {i} decks in the database.')
+
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return
+
+    if message.content.strip().startswith('https://www.moxfield.com'):
+        link = message.content.split()[0]
+        if findDecksBy('url', link) == []:
+            msg = await message.channel.send('Looks like you just shared a Moxfield link that isn\'t in the database.\nWe\'d appreicaite if you add it with "/saveDeck MOXFIELD_LINK".')
+                                       #Would you like to add it to the database? (respond "yes" or "no". Or ignore for 10 econds.)')
+            start = time.time()
+            while True:
+                current = time.time()
+                if current - start >=10:
+                    await msg.delete()
+                    break
+        
+      #  waitingOnUser = message.author #Eventually use this to make an easy "yes id like to add this to the DB" response withot making the user call /addDeck
+      #  waitingForResponse = True
+      #  startWait = time.time
+      #  while waitingForResponse:
+      #      pass
+    await bot.process_commands(message)
 
 # ---------- Discord stuff. Don't touch it. ----------
 try:

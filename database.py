@@ -242,7 +242,7 @@ class database:
         try:
             dict = ast.literal_eval(line)  # ast.literal_eval()
         except:
-            print("Eval error.")
+            print(f"Eval error. Row {row}")
             raise Exception
         jsonString = json.dumps(dict)
         dbEntry = json.loads(jsonString)
