@@ -1,9 +1,29 @@
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By 
-from selenium.webdriver.chrome.options import Options
+from playwright.sync_api import sync_playwright, Playwright
+import time 
 
+def run(playwright: Playwright):
+    chromium = playwright.chromium # or "firefox" or "webkit".
+    browser = chromium.launch()
+    page = browser.new_page()
+    page.goto("https://www.moxfield.com/")
+    print(page.url)
+
+    #page.locator("div", has=page.locator('a', has=page.locator('span', has_text="More"))).click()
+    page.locator("div").filter(has=page.get_by_role("link").filter(has=page.locator("span").filter(has_text="More"))).click()
+    print(page.url)
+    #time.sleep(10)
+    # other actions...
+    browser.close()
+
+with sync_playwright() as playwright:
+    run(playwright)
+
+"""
 def getDeckInfo(url):
+
+
+
+
     options = Options()
     options.add_argument("--headless=new")
     driver = webdriver.Chrome(options=options) 
@@ -54,3 +74,15 @@ def getDeckInfo(url):
     
     driver.close()
     return decklistInfo
+"""
+from zenrows import ZenRowsClient
+def getZenrowsInfo(url):
+    client = ZenRowsClient("a4f31946464b27a08396ea5e149bf675d014cd29")
+   # params = {"autoparse":"true"}  
+    response = client.get(url)#, params=params)
+    return response
+
+
+url = "https://www.moxfield.com/"
+#print(getZenrowsInfo(url))
+#print(getDeckInfo(url).text)

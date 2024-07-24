@@ -11,7 +11,7 @@ def getDeckInfo(url, headless=True):
     if headless:
         options.add_argument("--headless=new")
     driver = webdriver.Chrome(options=options)
-    ChromeDriverManager.install(self=driver)
+    #ChromeDriverManager.install(self=driver)
     driver.get(url)
     waitSeconds = 20
     driver.implicitly_wait(waitSeconds)
