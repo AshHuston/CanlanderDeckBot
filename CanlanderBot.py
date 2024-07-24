@@ -467,13 +467,15 @@ async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
 
     deckID = findDeckByUrl(deckData['url'])
     if deckID != -1:
-        if updateDatabaseEntry(deckID, deckData):
-            msg = 'Your entry has been updated!'
-        else:
-            msg = 'There was an issue with your update. Wait a moment and try again. If you still have issues please contact AshTheHorse.'
         originalAuthor = decklistDatabase.getValue(deckID, 'user')
         if originalAuthor != ctx.author.name:
             msg = f'Sorry, this list has already been submitted by {originalAuthor} at storage ID {deckID}.'
+        else:
+            if updateDatabaseEntry(deckID, deckData):
+                msg = 'Your entry has been updated!'
+            else:
+                msg = 'There was an issue with your update. Wait a moment and try again. If you still have issues please contact AshTheHorse.'
+        
 
     else:
         if addNewDatabaseEntry(deckData):
