@@ -3,13 +3,14 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By 
 from selenium.webdriver.chrome.options import Options
 import chromedriver_autoinstaller
+from webdriver_manager.chrome import ChromeDriverManager
 
 def getDeckInfo(url, headless=True):
     options = Options()
     chromedriver_autoinstaller.install()
     if headless:
         options.add_argument("--headless=new")
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
     driver.get(url)
     waitSeconds = 20
     driver.implicitly_wait(waitSeconds)
