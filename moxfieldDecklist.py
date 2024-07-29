@@ -5,13 +5,13 @@ from selenium.webdriver.chrome.options import Options
 import chromedriver_autoinstaller
 from webdriver_manager.chrome import ChromeDriverManager
 
+# I'd rather a way to do this all without simulating a browser. But some of the data I need is behind dynamic elements in the webpage so IDK how.
+
 def getDeckInfo(url, headless=True):
     options = Options()
-    #chromedriver_autoinstaller.install()
     if headless:
         options.add_argument("--headless=new")
     driver = webdriver.Chrome(options=options)
-    #ChromeDriverManager.install(self=driver)
     driver.get(url)
     waitSeconds = 20
     driver.implicitly_wait(waitSeconds)
@@ -47,7 +47,6 @@ def getDeckInfo(url, headless=True):
     tcgRadio = driver.find_element(By.ID, 'affiliate-tcgplayer')
     tcgRadio.click()
     tcgRadio.send_keys(Keys.RETURN)
-    #price = driver.find_element(By.ID, 'shoppingcart').text
     possiblePrices = driver.find_elements(By.CLASS_NAME, 'ms-1')
     textCandidates =[]
     for each in possiblePrices:
@@ -67,7 +66,6 @@ def getDeckInfo(url, headless=True):
         except:
             continue
         
-    
     decklistInfo = {
         "deckName": deckName,
         "colors": colors,
@@ -79,4 +77,5 @@ def getDeckInfo(url, headless=True):
     driver.close()
     return decklistInfo
 
+# This test is only here so on startup it will check if selenium works. Still trying to get it to work on the cloud. 
 print(getDeckInfo('https://www.moxfield.com/decks/kIe_Vt25jk6-e4ZCkFIeTg'))

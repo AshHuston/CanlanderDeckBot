@@ -1,7 +1,7 @@
 import json
 import os
 # import secrets
-# import cryptography
+# import cryptography # I dont remember if I tried using this or not. I may have decided to try and do the encrypt/decrypt on my own. Which is probably why it's not currently working.
 import random
 import ast
 
@@ -11,7 +11,7 @@ encrytionCharacters = [' ', '"', '\'', ':', ';', '<', '>', '/', '-', '+', '=', '
                       '1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
 class database:
-    """This class creates and stores a simple database to be accessed by the application.
+    """This class creates and stores a simple JSON formatted database to be accessed by the application.
 
     Args:
         dbName (str): The name of the database and the file it is stored in. "db_" will be appended to the front.
@@ -34,7 +34,7 @@ class database:
         return key
        
     def encrypt(self, key, plainMessage):
-        return plainMessage #--------------------# This is literally just to pypass the function bc we can't store the key.
+        return plainMessage #--------------------# This is literally just to pypass the function bc it's not working currently. I think because we can't store the key.
         global encrytionCharacters
         characters = encrytionCharacters
         #plainMessage = plainMessage.lower()
@@ -53,7 +53,7 @@ class database:
         return encodedMessage
 
     def decrypt(self, key, encodedMessage):
-        return encodedMessage #--------------------# This is literally just to pypass the function bc we can't store the key.
+        return encodedMessage #--------------------# This is literally just to pypass the function bc it's not working currently. I think because we can't store the key.
         global encrytionCharacters
         characters = encrytionCharacters
         plainMessage = ""
@@ -93,8 +93,7 @@ class database:
             return False
 
     def __init__(self, dbName, valueKeys):
-        self.encryptionKey = "8d}%yRw]a!X@OU/LESnpVcMNf1s9AgP)rTuo>iIKH[h,$kGzQ:7 =j\";WDm43&YCB?2e{+b#(l_5'`<~F|-Jxtvq*0.6Z^"
-        # = self.generateEncryptionKey()
+        self.encryptionKey = "8d}%yRw]a!X@OU/LESnpVcMNf1s9AgP)rTuo>iIKH[h,$kGzQ:7 =j\";WDm43&YCB?2e{+b#(l_5'`<~F|-Jxtvq*0.6Z^"  # = self.generateEncryptionKey()
         self.filename = "db_"+dbName+".txt"
         filePath = self.filename
         self.dbName = dbName
@@ -352,7 +351,7 @@ class database:
         else:
             return foundRowNumbers
 
-    # These two functions, addColumn() and deleteColumn(), should maybe add/remove the properties from the lines. As of now they don't, obviously.
+    # These two functions, addColumn() and deleteColumn(), should maybe add/remove the properties from all the existing lines. As of now they don't, obviously.
     def addColumn(self, newColumnName):
         """Adds a new column to the database.
 
