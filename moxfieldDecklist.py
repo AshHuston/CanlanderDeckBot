@@ -9,9 +9,10 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 def getDeckInfo(url, headless=True):
     options = Options()
+    service = webdriver.ChromeService(executable_path='chromedriver.exe')
     if headless:
         options.add_argument("--headless=new")
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(options=options, service=service)
     driver.get(url)
     waitSeconds = 20
     driver.implicitly_wait(waitSeconds)
@@ -78,4 +79,4 @@ def getDeckInfo(url, headless=True):
     return decklistInfo
 
 # This test is only here so on startup it will check if selenium works. Still trying to get it to work on the cloud. 
-print(getDeckInfo('https://www.moxfield.com/decks/kIe_Vt25jk6-e4ZCkFIeTg'))
+#print(getDeckInfo('https://www.moxfield.com/decks/kIe_Vt25jk6-e4ZCkFIeTg'))
