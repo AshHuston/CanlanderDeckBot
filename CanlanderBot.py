@@ -7,7 +7,6 @@ from datetime import date
 import time
 from thefuzz import fuzz
 import validators
-import os
 
 databaseUpdating = False # Will use to disable everything else during the update.    NEW_PLAN = Maybe it's better to make a thread, make a copy of the DB, update all those entries, then replace the old with the new.
 decklistDatabase = database.database('canlanderDecksDB', ['deckName', 'colors', 'tags', 'user', 'points', 'url', 'decklist', 'last updated', 'region', 'price'])

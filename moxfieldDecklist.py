@@ -1,39 +1,36 @@
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By 
-from selenium.webdriver.chrome.options import Options
-import chromedriver_autoinstaller
-from webdriver_manager.chrome import ChromeDriverManager
+from playwright.sync_api import sync_playwright, Playwright
+import time
 
-# I'd rather a way to do this all without simulating a browser. But some of the data I need is behind dynamic elements in the webpage so IDK how.
+#####       YOU HAVE TO SWAP TO THE ASYNC API FOR PLAYWRIGHT BC REASONS
 
-def getDeckInfo(url, headless=True):
-    options = Options()
-    service = webdriver.ChromeService(executable_path='chromedriver.exe')
-    if headless:
-        options.add_argument("--headless=new")
-    driver = webdriver.Chrome(options=options, service=service)
-    driver.get(url)
-    waitSeconds = 20
-    driver.implicitly_wait(waitSeconds)
-    deckName = driver.find_element(By.CLASS_NAME, 'deckheader-name').text
-    elem = driver.find_element(By.ID, "subheader-more")
-    elem.send_keys(Keys.RETURN)
-    assert "No results found." not in driver.page_source
-    exportBtn = driver.find_element(By.LINK_TEXT, 'Export')
-    exportBtn.send_keys(Keys.RETURN)
-    decklistTextBox = driver.find_element(By.NAME, "mtgo")
-    decklist = decklistTextBox.get_attribute('value')
-
-
-    decklistTextBox.send_keys(Keys.ESCAPE)
-
-    # Get colors
-    whitePercent = driver.find_element(By.ID, "coloranalysis_pips_w").text.split("%")[0]
-    bluePercent = driver.find_element(By.ID, "coloranalysis_pips_u").text.split("%")[0]
-    blackPercent = driver.find_element(By.ID, "coloranalysis_pips_b").text.split("%")[0]
-    redPercent = driver.find_element(By.ID, "coloranalysis_pips_r").text.split("%")[0]
-    greenPercent = driver.find_element(By.ID, "coloranalysis_pips_g").text.split("%")[0]
+def run(playwright: Playwright, url):
+    # Boilerplate
+    chromium = playwright.chromium
+    browser = chromium.launch()
+    page = browser.new_page()
+    page.goto(url)
+   
+    # Deckname
+    deckname_locator = page.locator(".deckheader-name")
+    deckname_locator.wait_for()
+    deckName = deckname_locator.text_content()
+    
+    # Colors
+    whitePercent_locator = page.locator("#coloranalysis_pips_w")
+    bluePercent_locator = page.locator("#coloranalysis_pips_u")
+    blackPercent_locator = page.locator("#coloranalysis_pips_b")
+    redPercent_locator = page.locator("#coloranalysis_pips_r")
+    greenPercent_locator = page.locator("#coloranalysis_pips_g")
+    whitePercent_locator.wait_for()
+    bluePercent_locator.wait_for()
+    blackPercent_locator.wait_for()
+    redPercent_locator.wait_for()
+    greenPercent_locator.wait_for()
+    whitePercent = whitePercent_locator.text_content().split("%")[0]
+    bluePercent = bluePercent_locator.text_content().split("%")[0]
+    blackPercent = blackPercent_locator.text_content().split("%")[0]
+    redPercent = redPercent_locator.text_content().split("%")[0]
+    greenPercent = greenPercent_locator.text_content().split("%")[0]
     colors = {
         "white": f"{(float(whitePercent)>0)}",
         "blue": f"{(float(bluePercent)>0)}",
@@ -41,32 +38,46 @@ def getDeckInfo(url, headless=True):
         "red": f"{(float(redPercent)>0)}",
         "green": f"{(float(greenPercent)>0)}"
     }
-
-    buyBtn = driver.find_element(By.PARTIAL_LINK_TEXT, 'Buy')
-    buyBtn.click()
-    buyBtn.send_keys(Keys.RETURN)
-    tcgRadio = driver.find_element(By.ID, 'affiliate-tcgplayer')
-    tcgRadio.click()
-    tcgRadio.send_keys(Keys.RETURN)
-    possiblePrices = driver.find_elements(By.CLASS_NAME, 'ms-1')
-    textCandidates =[]
-    for each in possiblePrices:
-        textCandidates.append(each.text)
-    price = textCandidates[-1]
-
-    tcgRadio.send_keys(Keys.ESCAPE)
     
-    lastUpdatedLable = driver.find_element(By.ID, "lastupdated")
-    lastUpdatedLable.click()
-    lastUpdateDateLable = driver.find_elements(By.CLASS_NAME, "cursor-help")[0]#.text
+    # Price
+    buy_btn_locator = page.get_by_text('BuyDeck')
+    buy_btn_locator.wait_for()
+    buy_btn_locator.click()
+    tcg_radio_locator = page.locator("#affiliate-tcgplayer")
+    tcg_radio_locator.wait_for()
+    tcg_radio_locator.click()
+    possiblePrices = page.locator(".ms-1")
+    price = possiblePrices.all()[-1].text_content()
+    page.keyboard.down('Escape')
+    
+    # Decklist
+    more_btn_locator = page.locator('#subheader-more')
+    more_btn_locator.wait_for()
+    more_btn_locator.click()
+    export_btn_locator = page.get_by_text('Export')
+    export_btn_locator.wait_for()
+    export_btn_locator.click()
+    decklist = page.locator("[name='mtgo']").text_content()
+    page.keyboard.down('Escape')
+
+    #Last updated
+    last_updated_btn_locator = page.locator('#lastupdated')
+    last_updated_btn_locator.wait_for()
+    last_updated_btn_locator.click()
+    allUpdateDateLable_locator = page.locator(".cursor-help")
+    time.sleep(2)
+    lastUpdateDateLable_locator = allUpdateDateLable_locator.all()[0]
+    lastUpdateDateLable_locator.wait_for()
     while True:
-        lastUpdateDateLable.click()
+        lastUpdateDateLable_locator.click()
         try:
-            lastUpdateDate = driver.find_element(By.XPATH, "//div[@style = 'transform: translateY(1px);']").text
+            lastUpdateDate = page.locator("xpath=//div[@style = 'transform: translateY(1px);']").text_content()
             break
         except:
             continue
-        
+
+    browser.close()
+
     decklistInfo = {
         "deckName": deckName,
         "colors": colors,
@@ -74,9 +85,12 @@ def getDeckInfo(url, headless=True):
         "lastUpdated": lastUpdateDate,
         "decklist": decklist
     }
-    
-    driver.close()
+
     return decklistInfo
 
-# This test is only here so on startup it will check if selenium works. Still trying to get it to work on the cloud. 
-#print(getDeckInfo('https://www.moxfield.com/decks/kIe_Vt25jk6-e4ZCkFIeTg'))
+def getDeckInfo(url, headless=True):
+    with sync_playwright() as playwright:
+        return(run(playwright, url))
+
+# For testing purposes
+#print(getDeckInfo('https://www.moxfield.com/decks/hlyRtm2pUUu5sDWMqvsZWQ/history'))

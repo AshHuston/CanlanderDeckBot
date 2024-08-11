@@ -71,7 +71,7 @@ class database:
         return plainMessage
 
     def getLines(self):
-        file = open(self.filename, 'r')
+        file = open(self.filename, 'r', encoding='latin-1')
         text = file.read()
         file.close()
         decryptedText = self.decrypt(self.encryptionKey, text)
