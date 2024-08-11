@@ -10,7 +10,7 @@ import validators
 
 databaseUpdating = False # Will use to disable everything else during the update.    NEW_PLAN = Maybe it's better to make a thread, make a copy of the DB, update all those entries, then replace the old with the new.
 decklistDatabase = database.database('canlanderDecksDB', ['deckName', 'colors', 'tags', 'user', 'points', 'url', 'decklist', 'last updated', 'region', 'price'])
-botAuthToken = "bot_key"
+botAuthToken = "bot_token"
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -374,7 +374,7 @@ async def updateDecks(ctx):
             if len(oldData) == 0:
                 break
             moxfieldLink = oldData['url']
-            moxfieldDeckInfo = moxfieldDecklist.getDeckInfo(moxfieldLink)
+            moxfieldDeckInfo = await moxfieldDecklist.getDeckInfo(moxfieldLink)
             deckData = {
                 "deckName": moxfieldDeckInfo['deckName'].replace('\'', ''), 
                 "colors": moxfieldDeckInfo['colors'], 
@@ -421,7 +421,7 @@ async def pointsCheck(ctx, url):
     if not validators.url(url):
         raise commands.UserInputError
     loadingMessage = await ctx.send("Checking...")
-    deckInfo = moxfieldDecklist.getDeckInfo(url)
+    deckInfo = await moxfieldDecklist.getDeckInfo(url)
     points = getPoints(deckInfo["decklist"])
     await loadingMessage.delete()
     await ctx.send(points)
@@ -450,7 +450,7 @@ async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
     if not validators.url(moxfieldLink):
         raise commands.UserInputError
     loadingMessage = await ctx.send("Uploading to database...")
-    moxfieldDeckInfo = moxfieldDecklist.getDeckInfo(moxfieldLink)
+    moxfieldDeckInfo = await moxfieldDecklist.getDeckInfo(moxfieldLink)
     deckData = {
         "deckName": moxfieldDeckInfo['deckName'].replace('\'', ''), 
         "colors": moxfieldDeckInfo['colors'], 

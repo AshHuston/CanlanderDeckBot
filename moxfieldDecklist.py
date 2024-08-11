@@ -1,36 +1,43 @@
-from playwright.sync_api import sync_playwright, Playwright
+import asyncio
+from playwright.async_api import async_playwright, Playwright
 import time
 
 #####       YOU HAVE TO SWAP TO THE ASYNC API FOR PLAYWRIGHT BC REASONS
 
-def run(playwright: Playwright, url):
+async def run(playwright: Playwright, url):
     # Boilerplate
     chromium = playwright.chromium
-    browser = chromium.launch()
-    page = browser.new_page()
-    page.goto(url)
+    browser = await chromium.launch()
+    page = await browser.new_page()
+    await page.goto(url)
+    page.set_default_timeout(2000)
    
     # Deckname
     deckname_locator = page.locator(".deckheader-name")
-    deckname_locator.wait_for()
-    deckName = deckname_locator.text_content()
-    
+    await deckname_locator.wait_for()
+    deckName = await deckname_locator.text_content()
+
     # Colors
     whitePercent_locator = page.locator("#coloranalysis_pips_w")
     bluePercent_locator = page.locator("#coloranalysis_pips_u")
     blackPercent_locator = page.locator("#coloranalysis_pips_b")
     redPercent_locator = page.locator("#coloranalysis_pips_r")
     greenPercent_locator = page.locator("#coloranalysis_pips_g")
-    whitePercent_locator.wait_for()
-    bluePercent_locator.wait_for()
-    blackPercent_locator.wait_for()
-    redPercent_locator.wait_for()
-    greenPercent_locator.wait_for()
-    whitePercent = whitePercent_locator.text_content().split("%")[0]
-    bluePercent = bluePercent_locator.text_content().split("%")[0]
-    blackPercent = blackPercent_locator.text_content().split("%")[0]
-    redPercent = redPercent_locator.text_content().split("%")[0]
-    greenPercent = greenPercent_locator.text_content().split("%")[0]
+    await whitePercent_locator.wait_for()
+    await bluePercent_locator.wait_for()
+    await blackPercent_locator.wait_for()
+    await redPercent_locator.wait_for()
+    await greenPercent_locator.wait_for()
+    whitePercent = await whitePercent_locator.text_content()
+    whitePercent = whitePercent.split("%")[0]
+    bluePercent = await bluePercent_locator.text_content()
+    bluePercent = bluePercent.split("%")[0]
+    blackPercent = await blackPercent_locator.text_content()
+    blackPercent = blackPercent.split("%")[0]
+    redPercent = await redPercent_locator.text_content()
+    redPercent = redPercent.split("%")[0]
+    greenPercent = await greenPercent_locator.text_content()
+    greenPercent = greenPercent.split("%")[0]
     colors = {
         "white": f"{(float(whitePercent)>0)}",
         "blue": f"{(float(bluePercent)>0)}",
@@ -41,42 +48,44 @@ def run(playwright: Playwright, url):
     
     # Price
     buy_btn_locator = page.get_by_text('BuyDeck')
-    buy_btn_locator.wait_for()
-    buy_btn_locator.click()
+    await buy_btn_locator.wait_for()
+    await buy_btn_locator.click()
     tcg_radio_locator = page.locator("#affiliate-tcgplayer")
-    tcg_radio_locator.wait_for()
-    tcg_radio_locator.click()
+    await tcg_radio_locator.wait_for()
+    await tcg_radio_locator.click()
     possiblePrices = page.locator(".ms-1")
-    price = possiblePrices.all()[-1].text_content()
-    page.keyboard.down('Escape')
+    price = await possiblePrices.all()
+    price = await price[-1].text_content()
+    await page.keyboard.down('Escape')
     
     # Decklist
     more_btn_locator = page.locator('#subheader-more')
-    more_btn_locator.wait_for()
-    more_btn_locator.click()
+    await more_btn_locator.wait_for()
+    await more_btn_locator.click()
     export_btn_locator = page.get_by_text('Export')
-    export_btn_locator.wait_for()
-    export_btn_locator.click()
-    decklist = page.locator("[name='mtgo']").text_content()
-    page.keyboard.down('Escape')
+    await export_btn_locator.wait_for()
+    await export_btn_locator.click()
+    decklist = await page.locator("[name='mtgo']").text_content()
+    await page.keyboard.down('Escape')
 
     #Last updated
     last_updated_btn_locator = page.locator('#lastupdated')
-    last_updated_btn_locator.wait_for()
-    last_updated_btn_locator.click()
+    await last_updated_btn_locator.wait_for()
+    await last_updated_btn_locator.click()
     allUpdateDateLable_locator = page.locator(".cursor-help")
     time.sleep(2)
-    lastUpdateDateLable_locator = allUpdateDateLable_locator.all()[0]
-    lastUpdateDateLable_locator.wait_for()
+    allUpdateDateLable_locator = await allUpdateDateLable_locator.all()
+    lastUpdateDateLable_locator = allUpdateDateLable_locator[0]
+    await lastUpdateDateLable_locator.wait_for()
     while True:
-        lastUpdateDateLable_locator.click()
+        await lastUpdateDateLable_locator.click()
         try:
-            lastUpdateDate = page.locator("xpath=//div[@style = 'transform: translateY(1px);']").text_content()
+            lastUpdateDate = await page.locator("xpath=//div[@style = 'transform: translateY(1px);']").text_content()
             break
         except:
             continue
 
-    browser.close()
+    await browser.close()
 
     decklistInfo = {
         "deckName": deckName,
@@ -88,9 +97,15 @@ def run(playwright: Playwright, url):
 
     return decklistInfo
 
-def getDeckInfo(url, headless=True):
-    with sync_playwright() as playwright:
-        return(run(playwright, url))
+async def getDeckInfo(url, headless=True):
+    async with async_playwright() as playwright:
+        data = await run(playwright, url)
+        print(data)
+        return data
 
 # For testing purposes
-#print(getDeckInfo('https://www.moxfield.com/decks/hlyRtm2pUUu5sDWMqvsZWQ/history'))
+loop = asyncio.get_event_loop()
+loop.run_until_complete(getDeckInfo('https://www.moxfield.com/decks/hlyRtm2pUUu5sDWMqvsZWQ'))
+loop.close()
+print('done')
+#print(getDeckInfo('https://www.moxfield.com/decks/hlyRtm2pUUu5sDWMqvsZWQ'))
