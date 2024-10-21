@@ -404,9 +404,7 @@ async def updateDecks(ctx):
     await response.delete()
     
 
-   # ------------------------------------------------------------------------------------------------------ DB cant see the file i guess? its not reading anything so like idk... ------------------------------# 
-
-
+   
 # ----------------------------------CLIENT_COMMANDS----------------------------------------- #
 @bot.command(aliases=['pointscheck', 'points'])
 async def pointsCheck(ctx, url):
