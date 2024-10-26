@@ -2,17 +2,21 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By 
 from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.common.action_chains import ActionChains
+import time
 
 # I'd rather a way to do this all without simulating a browser. But some of the data I need is behind dynamic elements in the webpage so IDK how.
 
 def getDeckInfo(url, headless=True):
+    start = time.time()
     options = Options()
     service = webdriver.ChromeService(executable_path='chromedriver.exe')
     if headless:
         options.add_argument("--headless=new")
     driver = webdriver.Chrome(options=options, service=service)
     driver.get(url)
-    waitSeconds = 20
+    waitSeconds = 5
     driver.implicitly_wait(waitSeconds)
     deckName = driver.find_element(By.CLASS_NAME, 'deckheader-name').text
     elem = driver.find_element(By.ID, "subheader-more")
@@ -22,7 +26,6 @@ def getDeckInfo(url, headless=True):
     exportBtn.send_keys(Keys.RETURN)
     decklistTextBox = driver.find_element(By.NAME, "mtgo")
     decklist = decklistTextBox.get_attribute('value')
-
 
     decklistTextBox.send_keys(Keys.ESCAPE)
 
@@ -57,14 +60,18 @@ def getDeckInfo(url, headless=True):
     lastUpdatedLable = driver.find_element(By.ID, "lastupdated")
     lastUpdatedLable.click()
     lastUpdateDateLable = driver.find_elements(By.CLASS_NAME, "cursor-help")[0]#.text
+    lastUpdateDate = "00/00/0000"
     while True:
-        lastUpdateDateLable.click()
+        try:
+            hover = ActionChains(driver).move_to_element(lastUpdateDateLable)
+            hover.perform()
+        except WebDriverException as e:
+            break
         try:
             lastUpdateDate = driver.find_element(By.XPATH, "//div[@style = 'transform: translateY(1px);']").text
             break
         except:
             continue
-        
     decklistInfo = {
         "deckName": deckName,
         "colors": colors,
@@ -77,4 +84,4 @@ def getDeckInfo(url, headless=True):
     return decklistInfo
 
 # This test is only here so on startup it will check if selenium works. Still trying to get it to work on the cloud. 
-#print(getDeckInfo('https://www.moxfield.com/decks/kIe_Vt25jk6-e4ZCkFIeTg'))
+#print(getDeckInfo('https://www.moxfield.com/decks/kIe_Vt25jk6-e4ZCkFIeTg', False))
