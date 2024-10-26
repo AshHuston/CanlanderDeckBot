@@ -9,8 +9,8 @@ from thefuzz import fuzz
 import validators
 
 databaseUpdating = False # Will use to disable everything else during the update.    NEW_PLAN = Maybe it's better to make a thread, make a copy of the DB, update all those entries, then replace the old with the new.
-decklistDatabase = database.database('canlanderDecksDB', ['deckName', 'colors', 'tags', 'user', 'points', 'url', 'decklist', 'last updated', 'region', 'price'])
-botAuthToken = "bot_token"
+decklistDatabase = database.database('canlanderDecksDB', ['deckName', 'colors', 'tags', 'user', 'points', 'url', 'decklist', 'last updated', 'region', 'price', 'needsUpdated', 'DB last updated'])
+botAuthToken = "" #"bot_token"
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -143,12 +143,16 @@ def getCurrentDate():
 def getUpdateDate(inputDate):
     return inputDate.split(',')[0]
 
+def getTotalDays(value):
+        date = value.replace('/', '-').replace('.', '-').split('-')
+        months = int(date[0])
+        days = int(date[1])
+        years = int(date[2])
+        inputTotalDays = days + (months*30) + (years*365)
+        return inputTotalDays
+
 def findDecksAfterDate(value):
-    date = value.replace('/', '-').replace('.', '-').split('-')
-    months = date[0]
-    days = date[1]
-    years = date[2]
-    inputTotalDays = days + (months*30) + (years*365)
+    inputTotalDays = getTotalDays(value)
 
     foundDeckRowIDs = []
     stillFindingRows = True
@@ -168,6 +172,21 @@ def findDecksAfterDate(value):
             stillFindingRows = False
         i += 1
     return foundDeckRowIDs
+
+def checkForNeedsUpdate():
+    updateCutoffDays = 5
+    i = 1
+    while i>0:
+        try:
+            needsUpdated = decklistDatabase.getValue(i, 'needsUpdated')
+            checkDate = decklistDatabase.getValue(i, 'DB last updated')
+            currentDate = getCurrentDate()
+            if getTotalDays(currentDate) - getTotalDays(checkDate) >= updateCutoffDays:
+                decklistDatabase.updateValue(i, 'needsUpdated', 'True')
+        except:
+            i = -1
+            continue
+        i += 1    
 
 def getEntriesByColor(key, enteredColors):
     enteredColorDict = eval(enteredColors)
@@ -204,8 +223,8 @@ def getEntriesByColor(key, enteredColors):
 
 def findDecksUnderBudget(budget):
     foundDeckRowIDs = []
-    if "$" in budget:
-        budgetFloat = float(budget.replace("$",""))
+    budget = budget.replace("$","")
+    budgetFloat = float(budget)
     i = 1
     while i>0:
             try:
@@ -227,21 +246,21 @@ def findDecksUnderBudget(budget):
 
 def findDecksWithCards(cards):
     foundDeckRowIDs = []
-    cardsList = cards.lower().split("/")
+    cardsList = cards.replace("-", " ").lower().split("/")
     i = 1
     while i>0:
-            try:
-                fullDeckList = decklistDatabase.getValue(i, 'decklist').lower().replace("/", " ")
-            except:
-                i = -1
-                continue
-            dontAdd = False
-            for each in cardsList:
-                if fullDeckList.count(each.strip()) < 1:
-                    dontAdd = True
-            if dontAdd == False:
-                foundDeckRowIDs.append(i)
-            i += 1
+        try:
+            fullDeckList = decklistDatabase.getValue(i, 'decklist').lower().replace("/", " ").replace("-", " ")
+        except:
+            i = -1
+            continue
+        dontAdd = False
+        for each in cardsList:
+            if fullDeckList.count(each.strip()) < 1:
+                dontAdd = True
+        if dontAdd == False:
+            foundDeckRowIDs.append(i)
+        i += 1
 
     return foundDeckRowIDs
 
@@ -340,6 +359,11 @@ def addNewDatabaseEntry(deckData):
 # ----------------------------------MOD_COMMANDS------------------------------------- #
 @bot.command(hidden=True, aliases=['updatedecks'])
 async def updateDecks(ctx):
+    ## @TODO Currently gets confused because it takes a while. Maybe this should include a default time ago that lists were updated to only update some.
+    ##TESTING
+    checkForNeedsUpdate()
+    return None
+    
     isMod = False
     for each in ctx.author.roles:
         if each.name.lower() == 'moderator':
@@ -374,7 +398,7 @@ async def updateDecks(ctx):
             if len(oldData) == 0:
                 break
             moxfieldLink = oldData['url']
-            moxfieldDeckInfo = await moxfieldDecklist.getDeckInfo(moxfieldLink)
+            moxfieldDeckInfo = moxfieldDecklist.getDeckInfo(moxfieldLink)
             deckData = {
                 "deckName": moxfieldDeckInfo['deckName'].replace('\'', ''), 
                 "colors": moxfieldDeckInfo['colors'], 
@@ -385,7 +409,9 @@ async def updateDecks(ctx):
                 "decklist": moxfieldDeckInfo['decklist'].replace("'", "").replace("/", " ").replace(",", "").replace(".", ""), 
                 "last updated": getUpdateDate(moxfieldDeckInfo['lastUpdated']).lstrip("0"), 
                 "region": decklistDatabase.getValue(i, 'region'),
-                "price": moxfieldDeckInfo['price']
+                "price": moxfieldDeckInfo['price'],
+                "DB last updated": getCurrentDate(),
+                "needsUpdated": 'False'
                 }
             try:
                 decklistDatabase.updateRow(i, str(deckData))
@@ -448,7 +474,7 @@ async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
     if not validators.url(moxfieldLink):
         raise commands.UserInputError
     loadingMessage = await ctx.send("Uploading to database...")
-    moxfieldDeckInfo = await moxfieldDecklist.getDeckInfo(moxfieldLink)
+    moxfieldDeckInfo = moxfieldDecklist.getDeckInfo(moxfieldLink)
     deckData = {
         "deckName": moxfieldDeckInfo['deckName'].replace('\'', ''), 
         "colors": moxfieldDeckInfo['colors'], 
@@ -459,7 +485,9 @@ async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
         "decklist": moxfieldDeckInfo['decklist'].replace("'", "").replace("/", " ").replace(",", "").replace(".", ""), 
         "last updated": getUpdateDate(moxfieldDeckInfo['lastUpdated']).lstrip("0"), 
         "region": region,
-        "price": moxfieldDeckInfo['price']
+        "price": moxfieldDeckInfo['price'],
+        "DB last updated": getCurrentDate(),
+        "needsUpdated": 'False'
         }
 
     deckID = findDeckByUrl(deckData['url'])
@@ -480,17 +508,19 @@ async def saveDeck(ctx, moxfieldLink, region='Online', *tags):
         else:
             msg = 'There was an issue with your entry. Wait a moment and try again. If you still have issues please contact AshTheHorse.'
     await loadingMessage.delete()
+    await ctx.message.delete()
     response = await ctx.send(msg)
     time.sleep(5)
     await response.delete()
 @saveDeck.error
 async def saveDeckError(ctx, error):
+    print(error)
     msg = f'Unknown error in /{ctx.invoked_with}'
     if isinstance(error, commands.MissingRequiredArgument):
         msg = f'Missing required argument.\nCorrect syntax: /{ctx.invoked_with} moxfield_link region tag1 tag2...'
     if isinstance(error, commands.UserInputError):
         msg = f'There was an input error.\nCorrect syntax: /{ctx.invoked_with} moxfield_link region tag1 tag2...'
-    
+   
     response = await ctx.send(msg)
     time.sleep(15)
     await response.delete()
@@ -546,10 +576,16 @@ async def searchDecks(ctx, *args):
 
     await loadingMessage.delete()
     if outputLines == "":
-        await ctx.send('Sorry, no decks found.')
+        delay = 10
+        msg = await ctx.send(f'Sorry, no decks found.\nYour command will be deleted in {delay} seconds.')
+        time.sleep(delay)
+        await ctx.message.delete()
+        await msg.delete()
     else:
         embed.description = outputLines
-        await ctx.send(embed=embed)
+        await ctx.message.delete()
+        await ctx.send(args, embed=embed)
+    
 
 @bot.command(aliases=['deckinfo', 'getDeckInfo', 'getdeckinfo'])
 async def deckInfo(ctx, id):
@@ -622,7 +658,7 @@ async def on_message(message):
                     await msg.delete()
                     break
         
-      #  waitingOnUser = message.author #Eventually use this to make an easy "yes id like to add this to the DB" response withot making the user call /addDeck
+      #  waitingOnUser = message.author #@TODO Eventually use this to make an easy "yes id like to add this to the DB" response withot making the user call /addDeck
       #  waitingForResponse = True
       #  startWait = time.time
       #  while waitingForResponse:

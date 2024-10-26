@@ -172,12 +172,12 @@ class database:
         """
         lines = self.getLines()
         if len(lines)<row:
-            print('3')
             raise Exception("ERROR: '" + row + "' out of range for database '" + self.dbName + "'.")
-        dbEntry = json.loads(lines[row].replace("\'", "\""))
+        line = lines[row].replace("\'", "\"")
+        dbEntry = json.loads(line) ##Heres the problem!!! Idk how tho
         if key in self.columnNames:
             try:
-                dbEntry[key] = {value}
+                dbEntry[key] = str(value)
                 lines[row] = str(dbEntry)
                 self.setLines(lines)
                 self.addRowNums()
@@ -185,7 +185,7 @@ class database:
             except:
                 return False
         else:
-            print('4')
+            print("ERROR: '" + key + "' is not a valid key for database '" + self.dbName + "'.")
             raise Exception("ERROR: '" + key + "' is not a valid key for database '" + self.dbName + "'.")
 
     def updateRow(self, row, data):
