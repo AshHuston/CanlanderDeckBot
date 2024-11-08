@@ -357,19 +357,23 @@ def addNewDatabaseEntry(deckData):
         return False
 
 # ----------------------------------MOD_COMMANDS------------------------------------- #
-@bot.command(hidden=True, aliases=['updatedecks'])
+@bot.command(hidden=True, aliases=['updatedecks', 'updatedb', 'updateDB', 'updateDb'])
 async def updateDecks(ctx):
     ## @TODO Currently gets confused because it takes a while. Maybe this should include a default time ago that lists were updated to only update some.
-    ##TESTING
+   
+    #################### TESTING
     checkForNeedsUpdate()
     return None
-    
+    ############################
+
     isMod = False
     for each in ctx.author.roles:
         if each.name.lower() == 'moderator':
             isMod = True
 
-    if isMod:
+    if isMod == False:
+        response = await ctx.send(f"Sorry, this is a mod-only command.")
+    else:
         loadingMessage = await ctx.send('Updating database. This may take a while.')
         databaseUpdating = True
         start = time.time()
@@ -394,40 +398,39 @@ async def updateDecks(ctx):
         backup.close()
         i = 1
         while i>0:
-            oldData = decklistDatabase.getRows('row', i)
-            if len(oldData) == 0:
-                break
-            moxfieldLink = oldData['url']
-            moxfieldDeckInfo = moxfieldDecklist.getDeckInfo(moxfieldLink)
-            deckData = {
-                "deckName": moxfieldDeckInfo['deckName'].replace('\'', ''), 
-                "colors": moxfieldDeckInfo['colors'], 
-                "tags": f"{oldData['tags']}", 
-                "user": f"{oldData['user']}", 
-                "points": getPoints(moxfieldDeckInfo['decklist']), 
-                "url": moxfieldLink, 
-                "decklist": moxfieldDeckInfo['decklist'].replace("'", "").replace("/", " ").replace(",", "").replace(".", ""), 
-                "last updated": getUpdateDate(moxfieldDeckInfo['lastUpdated']).lstrip("0"), 
-                "region": decklistDatabase.getValue(i, 'region'),
-                "price": moxfieldDeckInfo['price'],
-                "DB last updated": getCurrentDate(),
-                "needsUpdated": 'False'
-                }
             try:
+                oldData = decklistDatabase.getRows('row', i)
+                if len(oldData) == 0:
+                    break
+                moxfieldLink = oldData['url']
+                moxfieldDeckInfo = moxfieldDecklist.getDeckInfo(moxfieldLink)
+                deckData = {
+                    "deckName": moxfieldDeckInfo['deckName'].replace('\'', ''), 
+                    "colors": moxfieldDeckInfo['colors'], 
+                    "tags": f"{oldData['tags']}", 
+                    "user": f"{oldData['user']}", 
+                    "points": getPoints(moxfieldDeckInfo['decklist']), 
+                    "url": moxfieldLink, 
+                    "decklist": moxfieldDeckInfo['decklist'].replace("'", "").replace("/", " ").replace(",", "").replace(".", ""), 
+                    "last updated": getUpdateDate(moxfieldDeckInfo['lastUpdated']).lstrip("0"), 
+                    "region": decklistDatabase.getValue(i, 'region'),
+                    "price": moxfieldDeckInfo['price'],
+                    "DB last updated": getCurrentDate(),
+                    "needsUpdated": 'False'
+                    }
                 decklistDatabase.updateRow(i, str(deckData))
             except:
                 response = await ctx.send(f"error at db row {i}")
             i += 1
-        databaseUpdating = False
         file = discord.File("db_canlanderDecksDB.txt")
         await ctx.send(file=file, content="New backup:")
         end = time.time()
         response = await ctx.send(f"Database finished updating in {round(end-start, 1)} seconds.")
-    else:
-        response = await ctx.send(f"Sorry! You do not have the required permissions to use this command.")
+        databaseUpdating = False
     time.sleep(5)
     await loadingMessage.delete()
     await response.delete()
+    await ctx.message.delete()
     
 
    
@@ -586,7 +589,6 @@ async def searchDecks(ctx, *args):
         await ctx.message.delete()
         await ctx.send(args, embed=embed)
     
-
 @bot.command(aliases=['deckinfo', 'getDeckInfo', 'getdeckinfo'])
 async def deckInfo(ctx, id):
     """Get database entry by ID#
@@ -639,31 +641,38 @@ async def deckCount(ctx):
         row = decklistDatabase.getRows('row', i)
         if row == []:
             break
-    await ctx.send(f'There are currently {i} decks in the database.')
+    await ctx.send(f'There are currently {i-1} decks in the database.')
+
+@bot.command(aliases=['randomdeck', 'anydeck', 'anyDeck'])
+async def randomDeck(ctx):
+    await ctx.send(f'Sorry, this command hasn\'t been added yet.')
 
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
+        #This is essential to ensure the bot doesn't start looping in on itself.
         return
+
+    messageUptime = 10
 
     if message.content.strip().startswith('https://www.moxfield.com'):
         link = message.content.split()[0]
         if findDecksBy('url', link) == []:
             msg = await message.channel.send('Looks like you just shared a Moxfield link that isn\'t in the database.\nWe\'d appreicaite if you add it with "/saveDeck MOXFIELD_LINK".')
-                                       #Would you like to add it to the database? (respond "yes" or "no". Or ignore for 10 econds.)')
-            start = time.time()
-            while True:
-                current = time.time()
-                if current - start >=10:
-                    await msg.delete()
-                    break
-        
+            time.sleep(messageUptime)
+            await msg.delete()
       #  waitingOnUser = message.author #@TODO Eventually use this to make an easy "yes id like to add this to the DB" response withot making the user call /addDeck
       #  waitingForResponse = True
       #  startWait = time.time
       #  while waitingForResponse:
       #      pass
-    await bot.process_commands(message)
+
+    if databaseUpdating:
+        msg = await message.channel.send('Sorry, the database is updating.\nPlease wait a few minutes then try again.')
+        time.sleep(messageUptime)
+        await msg.delete()
+    else:
+        await bot.process_commands(message)
 
 # ---------- Discord stuff. Don't touch it. ----------
 try:
